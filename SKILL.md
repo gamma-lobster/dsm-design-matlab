@@ -412,6 +412,115 @@ See `references/design_4th_order_ciff.m` for complete example.
 | 0.1V | ~90 dB | ~14.6 bits |
 | 0.5V | ~104 dB | ~17.0 bits |
 
+## ADC and DAC Component Modeling
+
+In addition to complete DSM designs, this skill supports component-level modeling of flash ADC quantizers and thermometer DACs.
+
+### Flash ADC Quantizer with Thermometer Code Output
+
+A flash ADC uses a bank of comparators operating in parallel. The output is thermometer code (contiguous 1s followed by 0s), which can be converted to binary output.
+
+```matlab
+%% Flash ADC Quantizer
+% Parameters
+v_fs = 1.0;   % +/- 1V full scale
+n_bits = 3;   % 3-bit resolution
+
+% Input signal
+v_in = linspace(-1, 1, 100);
+
+% Quantize
+[thermometer, binary, thresholds] = flash_adc_quantizer(v_in, v_fs, n_bits);
+
+% thermometer: [samples x (2^n_bits - 1)] matrix of 0/1
+% binary: quantized output voltages (row vector)
+% thresholds: comparator threshold voltages
+```
+
+**Thermometer Code:** For a 3-bit flash ADC (7 comparators):
+- `0000000` → Level 0 → -1.00V
+- `0001111` → Level 4 → +0.14V  
+- `1111111` → Level 7 → +1.00V
+
+Each bit represents a comparator: `1` if `vin > threshold`, `0` otherwise.
+
+### Thermometer DAC
+
+Converts thermometer code back to analog voltage. Each bit has weight = `2*v_fs / (2^n_bits - 1)`.
+
+```matlab
+%% Thermometer DAC
+% Convert thermometer code back to analog
+v_dac = thermometer_dac(thermometer, v_fs, n_bits);
+
+% v_dac matches the binary output from the ADC
+% Both are row vectors [1 x samples]
+```
+
+**DAC Operation:**
+- Bit = 1: contributes `+weight`
+- Bit = 0: contributes `-weight`
+- Output = (sum of contributions) / 2 → scaled to ±v_fs
+
+### ADC-DAC Chain Verification
+
+```matlab
+%% Complete ADC-DAC chain
+% Flash ADC
+[therm, binary_adc, ~] = flash_adc_quantizer(v_in, 1.0, 3);
+
+% Thermometer DAC
+binary_dac = thermometer_dac(therm, 1.0, 3);
+
+% Verify they match
+max_error = max(abs(binary_adc - binary_dac));  % Should be ~0
+```
+
+### DAC Unit Cell Mismatch Modeling
+
+Real-world DACs suffer from unit cell mismatch due to manufacturing variations. This causes non-uniform step sizes (DNL errors) and deviation from the ideal transfer curve (INL errors).
+
+**Mismatch Model:**
+```
+Actual weight = nominal_weight + error
+where error ~ N(0, (mismatch_pct * nominal_weight)^2)
+```
+
+```matlab
+%% DAC with Unit Cell Mismatch
+% Parameters
+mismatch_pct = 0.02;  % 2% standard deviation
+seed = 42;            % Random seed for reproducibility
+
+% Run ADC
+[thermometer, binary_ideal, ~] = flash_adc_quantizer(v_in, 1.0, 3);
+
+% Run DAC with mismatch
+[v_mismatch, bit_weights] = thermometer_dac_mismatch(thermometer, 1.0, 3, mismatch_pct, seed);
+
+% bit_weights contains actual weights for each unit cell
+```
+
+**Mismatch Effects:**
+- **DNL (Differential Nonlinearity)**: Deviation of step size from 1 LSB
+- **INL (Integral Nonlinearity)**: Deviation of transfer curve from ideal
+- **Harmonic Distortion**: Creates spurs in output spectrum
+- **Reduced SFDR**: Limits dynamic range of multi-bit DACs
+
+**Example Output with 2% Mismatch:**
+```
+Nominal weight: 0.2857V
+Cell 1: 0.2912V (+1.9% deviation)
+Cell 2: 0.2789V (-2.4% deviation)
+...
+INL (max): 0.15 LSB
+DNL (max): 0.08 LSB
+```
+
+**Available Functions:**
+- `thermometer_dac_mismatch.m` - DAC with unit cell mismatch
+- `thermometer_dac_mismatch_demo.m` - Demonstration of mismatch effects with INL/DNL analysis
+
 ## References
 
 1. Pavan, Schreier, Temes - "Understanding Delta-Sigma Data Converters" (2nd Ed.), Appendix B
