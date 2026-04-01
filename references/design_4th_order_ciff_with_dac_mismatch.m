@@ -66,7 +66,7 @@ u = A_in * sin(2*pi*f_bin*(0:N-1)/N);
 n = 0:N-1;
 
 %% Step 6: Run Simulations
-fprintf('[Step 2] Run Simulations\n');
+fprintf('[Step 6] Run Simulations\n');
 fprintf('----------------------------------------\n');
 
 % Simulation 1: Ideal DAC (no mismatch)
@@ -84,7 +84,7 @@ fprintf('  Running: DAC with %.1f%% mismatch...\n', mismatch_pct*100);
 fprintf('  Simulations complete.\n\n');
 
 %% Step 7: Calculate SNR for both
-fprintf('[Step 3] Calculate SNR\n');
+fprintf('[Step 7] Calculate SNR\n');
 fprintf('----------------------------------------\n');
 
 % Use ADC binary output for SNR calculation (as in real DSM)
@@ -105,7 +105,7 @@ fprintf('    ENOB:  %.2f bits\n', ENOB_mismatch);
 fprintf('    SNR degradation: %.2f dB\n\n', SNR_ideal - SNR_mismatch);
 
 %% Step 8: Analyze Mismatch Effects
-fprintf('[Step 4] DAC Mismatch Analysis\n');
+fprintf('[Step 8] DAC Mismatch Analysis\n');
 fprintf('----------------------------------------\n');
 
 nominal_weight = (2 * V_fs) / (n_levels - 1);
@@ -118,7 +118,7 @@ fprintf('  INL (max): %.3f LSB\n', max(abs(inldnl.inl)));
 fprintf('  DNL (max): %.3f LSB\n\n', max(abs(inldnl.dnl)));
 
 %% Step 9: Generate Plots
-fprintf('[Step 5] Generate Comparison Plots\n');
+fprintf('[Step 9] Generate Comparison Plots\n');
 fprintf('----------------------------------------\n');
 
 generate_comparison_plots(u, v_ideal_adc, v_mismatch_adc, v_ideal_dac, v_mismatch_dac, ...
