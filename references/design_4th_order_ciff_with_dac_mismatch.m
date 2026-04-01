@@ -71,14 +71,14 @@ fprintf('----------------------------------------\n');
 
 % Simulation 1: Ideal DAC (no mismatch)
 fprintf('  Running: Ideal DAC (no mismatch)...\n');
-[v_ideal, therm_ideal, y_ideal] = run_dsm_with_flash_adc(...
+[v_ideal_dac, v_ideal_adc, therm_ideal, y_ideal] = run_dsm_with_flash_adc(...
     u, A_mat, B_mat, C_mat, D_mat, n_bits, V_fs);
 
 % Simulation 2: DAC with 0.5% mismatch
 mismatch_pct = 0.005;  % 0.5%
 seed = 42;
 fprintf('  Running: DAC with %.1f%% mismatch...\n', mismatch_pct*100);
-[v_mismatch, therm_mismatch, y_mismatch, bit_weights] = run_dsm_with_flash_adc_mismatch(...
+[v_mismatch_dac, v_mismatch_adc, therm_mismatch, y_mismatch, bit_weights] = run_dsm_with_flash_adc_mismatch(...
     u, A_mat, B_mat, C_mat, D_mat, n_bits, V_fs, mismatch_pct, seed);
 
 fprintf('  Simulations complete.\n\n');
@@ -87,8 +87,9 @@ fprintf('  Simulations complete.\n\n');
 fprintf('[Step 3] Calculate SNR\n');
 fprintf('----------------------------------------\n');
 
-[SNR_ideal, ENOB_ideal] = calculate_snr(v_ideal, u, N, OSR);
-[SNR_mismatch, ENOB_mismatch] = calculate_snr(v_mismatch, u, N, OSR);
+% Use ADC binary output for SNR calculation (as in real DSM)
+[SNR_ideal, ENOB_ideal] = calculate_snr(v_ideal_adc, u, N, OSR);
+[SNR_mismatch, ENOB_mismatch] = calculate_snr(v_mismatch_adc, u, N, OSR);
 
 % Calculate SNDR for mismatch case (includes distortion)
 SNDR_mismatch = calculate_sndr(v_mismatch, u, N, OSR, f_bin);
@@ -120,8 +121,8 @@ fprintf('  DNL (max): %.3f LSB\n\n', max(abs(inldnl.dnl)));
 fprintf('[Step 5] Generate Comparison Plots\n');
 fprintf('----------------------------------------\n');
 
-generate_comparison_plots(u, v_ideal, v_mismatch, therm_ideal, therm_mismatch, ...
-    n_bits, fs, N, OSR, SNR_ideal, SNR_mismatch, bit_weights, V_fs);
+generate_comparison_plots(u, v_ideal_adc, v_mismatch_adc, v_ideal_dac, v_mismatch_dac, ...
+    therm_ideal, therm_mismatch, n_bits, fs, N, OSR, SNR_ideal, SNR_mismatch, bit_weights, V_fs);
 
 %% Summary
 fprintf('\n============================================================\n');
@@ -140,14 +141,18 @@ fprintf('============================================================\n');
 %% Helper Functions
 %% ========================================================================
 
-function [v_out, thermometer, y_all] = run_dsm_with_flash_adc(u, A_mat, B_mat, C_mat, D_mat, n_bits, V_fs)
+function [v_dac, v_adc, thermometer, y_all] = run_dsm_with_flash_adc(u, A_mat, B_mat, C_mat, D_mat, n_bits, V_fs)
     %% Run DSM simulation with Flash ADC + Ideal Thermometer DAC
+    %% Returns:
+    %%   v_dac - DAC output (same as ADC in ideal case)
+    %%   v_adc - ADC binary output (the actual DSM output)
     N = length(u);
     n_states = size(A_mat, 1);
     n_levels = 2^n_bits;
     
     x = zeros(n_states, 1);
-    v_out = zeros(1, N);
+    v_dac = zeros(1, N);
+    v_adc = zeros(1, N);
     y_all = zeros(1, N);
     thermometer = zeros(N, n_levels - 1);
     
@@ -155,7 +160,7 @@ function [v_out, thermometer, y_all] = run_dsm_with_flash_adc(u, A_mat, B_mat, C
         if i == 1
             v_prev = 0;
         else
-            v_prev = v_out(i-1);
+            v_prev = v_dac(i-1);
         end
         
         % Compute modulator output (before quantizer)
@@ -163,17 +168,23 @@ function [v_out, thermometer, y_all] = run_dsm_with_flash_adc(u, A_mat, B_mat, C
         y_all(i) = y;
         
         % Flash ADC quantization
-        [therm, v_quant, ~] = flash_adc_quantizer(y, V_fs, n_bits);
+        [therm, binary_adc, ~] = flash_adc_quantizer(y, V_fs, n_bits);
         thermometer(i, :) = therm;
-        v_out(i) = v_quant;
+        v_adc(i) = binary_adc;  % This is the DSM output
+        
+        % Ideal DAC: output equals ADC output
+        v_dac(i) = v_adc(i);  % For ideal DAC
         
         % Update state
-        x = A_mat*x + B_mat(:,1)*u(i) + B_mat(:,2)*v_out(i);
+        x = A_mat*x + B_mat(:,1)*u(i) + B_mat(:,2)*v_dac(i);
     end
 end
 
-function [v_out, thermometer, y_all, bit_weights] = run_dsm_with_flash_adc_mismatch(u, A_mat, B_mat, C_mat, D_mat, n_bits, V_fs, mismatch_pct, seed)
+function [v_dac, v_adc, thermometer, y_all, bit_weights] = run_dsm_with_flash_adc_mismatch(u, A_mat, B_mat, C_mat, D_mat, n_bits, V_fs, mismatch_pct, seed)
     %% Run DSM simulation with Flash ADC + Mismatched Thermometer DAC
+    %% Returns:
+    %%   v_dac - DAC output (goes to feedback loop)
+    %%   v_adc - ADC binary output (the actual DSM output)
     N = length(u);
     n_states = size(A_mat, 1);
     n_levels = 2^n_bits;
@@ -188,7 +199,8 @@ function [v_out, thermometer, y_all, bit_weights] = run_dsm_with_flash_adc_misma
     bit_weights = nominal_weight * (1 + mismatch_pct * randn(1, n_comparators));
     
     x = zeros(n_states, 1);
-    v_out = zeros(1, N);
+    v_dac = zeros(1, N);  % DAC output for feedback
+    v_adc = zeros(1, N);  % ADC binary output (measured output)
     y_all = zeros(1, N);
     thermometer = zeros(N, n_comparators);
     
@@ -196,7 +208,7 @@ function [v_out, thermometer, y_all, bit_weights] = run_dsm_with_flash_adc_misma
         if i == 1
             v_prev = 0;
         else
-            v_prev = v_out(i-1);
+            v_prev = v_dac(i-1);  % Feedback from DAC
         end
         
         % Compute modulator output (before quantizer)
@@ -204,10 +216,11 @@ function [v_out, thermometer, y_all, bit_weights] = run_dsm_with_flash_adc_misma
         y_all(i) = y;
         
         % Flash ADC quantization
-        [therm, ~, ~] = flash_adc_quantizer(y, V_fs, n_bits);
+        [therm, binary_adc, ~] = flash_adc_quantizer(y, V_fs, n_bits);
         thermometer(i, :) = therm;
+        v_adc(i) = binary_adc;  % This is the actual DSM output
         
-        % Mismatched DAC reconstruction
+        % Mismatched DAC reconstruction (for feedback)
         contribution = 0;
         for j = 1:n_comparators
             if therm(j) == 1
@@ -216,10 +229,10 @@ function [v_out, thermometer, y_all, bit_weights] = run_dsm_with_flash_adc_misma
                 contribution = contribution - bit_weights(j);
             end
         end
-        v_out(i) = contribution * 0.5;
+        v_dac(i) = contribution * 0.5;  % This goes to feedback
         
-        % Update state
-        x = A_mat*x + B_mat(:,1)*u(i) + B_mat(:,2)*v_out(i);
+        % Update state using DAC output
+        x = A_mat*x + B_mat(:,1)*u(i) + B_mat(:,2)*v_dac(i);
     end
 end
 
@@ -345,8 +358,8 @@ function inldnl = calculate_inl_dnl_thermometer(bit_weights, v_fs, n_bits)
     inldnl.code = 0:n_levels-1;
 end
 
-function generate_comparison_plots(u, v_ideal, v_mismatch, therm_ideal, therm_mismatch, ...
-    n_bits, fs, N, OSR, SNR_ideal, SNR_mismatch, bit_weights, V_fs)
+function generate_comparison_plots(u, v_ideal_adc, v_mismatch_adc, v_ideal_dac, v_mismatch_dac, ...
+    therm_ideal, therm_mismatch, n_bits, fs, N, OSR, SNR_ideal, SNR_mismatch, bit_weights, V_fs)
     %% Generate comparison plots
     n_comparators = size(therm_ideal, 2);
     n_plot = 500;
@@ -354,22 +367,22 @@ function generate_comparison_plots(u, v_ideal, v_mismatch, therm_ideal, therm_mi
     
     figure('Name', 'DSM with Flash ADC - Ideal vs Mismatched DAC', 'Position', [50 50 1600 1200]);
     
-    % 1. Time domain comparison
+    % 1. Time domain comparison (ADC outputs)
     subplot(3, 3, 1);
     plot(t, u(1:n_plot), 'b-', 'LineWidth', 1); hold on;
-    stairs(t, v_ideal(1:n_plot), 'g-', 'LineWidth', 1.5);
-    stairs(t, v_mismatch(1:n_plot), 'r-', 'LineWidth', 1.5);
+    stairs(t, v_ideal_adc(1:n_plot), 'g-', 'LineWidth', 1.5);
+    stairs(t, v_mismatch_adc(1:n_plot), 'r-', 'LineWidth', 1.5);
     hold off;
     xlabel('Time (\mus)'); ylabel('Amplitude (V)');
-    title('Time Domain Comparison');
+    title('ADC Output: Time Domain');
     legend('Input', 'Ideal DAC', 'Mismatched DAC', 'Location', 'best');
     grid on;
     
-    % 2. Spectra comparison
+    % 2. Spectra comparison (using ADC output)
     subplot(3, 3, 2);
     w = 0.5 * (1 - cos(2*pi*(0:N-1)/N));
-    V_ideal = fft(v_ideal .* w) / (N/4);
-    V_mismatch = fft(v_mismatch .* w) / (N/4);
+    V_ideal = fft(v_ideal_adc .* w) / (N/4);
+    V_mismatch = fft(v_mismatch_adc .* w) / (N/4);
     freqs = (0:N/2)/N*fs/1000;
     
     semilogx(freqs, 20*log10(abs(V_ideal(1:N/2+1)) + eps), 'g-', 'LineWidth', 1.5); hold on;
@@ -378,17 +391,17 @@ function generate_comparison_plots(u, v_ideal, v_mismatch, therm_ideal, therm_mi
     plot([fB_kHz fB_kHz], [-140 10], 'm--', 'LineWidth', 2);
     hold off;
     xlabel('Frequency (kHz)'); ylabel('Magnitude (dBFS/NBW)');
-    title(sprintf('Output Spectrum Comparison\nGreen: SNR=%.1f dB, Red: SNR=%.1f dB', SNR_ideal, SNR_mismatch));
+    title(sprintf('ADC Output Spectrum\nGreen: SNR=%.1f dB, Red: SNR=%.1f dB', SNR_ideal, SNR_mismatch));
     legend('Ideal', '0.5% Mismatch', 'Signal BW', 'Location', 'northwest');
     grid on;
     axis([100 fs/2000 -140 10]);
     
-    % 3. Mismatch-induced error
+    % 3. Mismatch-induced error (ADC outputs)
     subplot(3, 3, 3);
-    mismatch_error = v_ideal - v_mismatch;
+    mismatch_error = v_ideal_adc - v_mismatch_adc;
     plot(t, mismatch_error(1:n_plot), 'm-', 'LineWidth', 1);
     xlabel('Time (\mus)'); ylabel('Error (V)');
-    title('Mismatch-Induced Error');
+    title('ADC Output Difference (Ideal - Mismatch)');
     grid on; yline(0, 'k--', 'Alpha', 0.3);
     
     % 4. Ideal DAC thermometer code
@@ -407,13 +420,13 @@ function generate_comparison_plots(u, v_ideal, v_mismatch, therm_ideal, therm_mi
     xlabel('Time (\mus)'); ylabel('Comparator #');
     title('Mismatched DAC: Thermometer Code');
     
-    % 6. Histogram comparison
+    % 6. Histogram comparison (ADC outputs)
     subplot(3, 3, 6);
-    histogram(v_ideal, 32, 'FaceColor', 'g', 'FaceAlpha', 0.5); hold on;
-    histogram(v_mismatch, 32, 'FaceColor', 'r', 'FaceAlpha', 0.5);
+    histogram(v_ideal_adc, 32, 'FaceColor', 'g', 'FaceAlpha', 0.5); hold on;
+    histogram(v_mismatch_adc, 32, 'FaceColor', 'r', 'FaceAlpha', 0.5);
     hold off;
     xlabel('Output Level (V)'); ylabel('Count');
-    title('Output Histogram Comparison');
+    title('ADC Output Histogram');
     legend('Ideal', 'Mismatched', 'Location', 'best');
     
     % 7. Bit weights with mismatch
