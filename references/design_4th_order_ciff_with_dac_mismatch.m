@@ -92,7 +92,7 @@ fprintf('----------------------------------------\n');
 [SNR_mismatch, ENOB_mismatch] = calculate_snr(v_mismatch_adc, u, N, OSR);
 
 % Calculate SNDR for mismatch case (includes distortion)
-SNDR_mismatch = calculate_sndr(v_mismatch, u, N, OSR, f_bin);
+SNDR_mismatch = calculate_sndr(v_mismatch_adc, u, N, OSR, f_bin);
 
 fprintf('  Ideal DAC:\n');
 fprintf('    SNR:  %.2f dB\n', SNR_ideal);
