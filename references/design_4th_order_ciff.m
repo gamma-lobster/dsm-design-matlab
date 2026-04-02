@@ -155,13 +155,26 @@ freqs = (0:N/2)/N*fs/1000;  % kHz
 sig_bin = sig_idx + 1;
 fB_bins = ceil(N / (2*OSR));
 
-% Signal bins (3-bin)
+% Signal bins (3-bin around fundamental)
 sig_bins = sig_bin-1:sig_bin+1;
 sig_bins = sig_bins(sig_bins >= 2 & sig_bins <= fB_bins);
 signal_power = sum(V_out_mag(sig_bins).^2);
 
-% Noise bins
-noise_bins = setdiff(2:fB_bins, sig_bins);
+% Identify harmonic bins to exclude from noise (up to 7th harmonic)
+harmonic_bins = [];
+for h = 2:7  % 2nd through 7th harmonics
+    harmonic_bin = h * sig_bin;
+    if harmonic_bin <= fB_bins
+        % Exclude 3 bins around each harmonic
+        harmonic_bins = [harmonic_bins, harmonic_bin-1:harmonic_bin+1];
+    end
+end
+harmonic_bins = unique(harmonic_bins);
+harmonic_bins = harmonic_bins(harmonic_bins >= 2 & harmonic_bins <= fB_bins);
+
+% Noise bins = in-band excluding DC (bin 1), signal, and harmonics
+exclude_bins = unique([sig_bins, harmonic_bins]);
+noise_bins = setdiff(2:fB_bins, exclude_bins);
 noise_power = sum(V_out_mag(noise_bins).^2);
 
 % SNR calculation
@@ -174,7 +187,7 @@ else
 end
 
 fprintf('  Signal power: %.4e\n', signal_power);
-fprintf('  Noise power: %.4e\n', noise_power);
+fprintf('  Noise power (excl. harmonics): %.4e\n', noise_power);
 fprintf('  SNR: %.2f dB\n', SNR);
 if isfinite(ENOB)
     fprintf('  ENOB: %.2f bits\n', ENOB);

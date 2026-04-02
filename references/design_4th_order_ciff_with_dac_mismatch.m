@@ -262,23 +262,39 @@ function [thermometer, binary, thresholds] = flash_adc_quantizer(v_in, v_fs, n_b
 end
 
 function [SNR, ENOB] = calculate_snr(v, u, N, OSR)
-    %% Calculate SNR from output spectrum
+    %% Calculate SNR (Signal-to-Noise Ratio)
+    %% SNR = Signal Power / Noise Power
+    %% Signal = fundamental only
+    %% Noise = everything in-band except DC, fundamental, and harmonics
     w = 0.5 * (1 - cos(2*pi*(0:N-1)/N));
     V_out = fft(v .* w) / (N/4);
     V_out_mag = abs(V_out);
     
-    % Find signal
+    % Find fundamental signal
     [~, sig_idx] = max(V_out_mag(2:N/2));
     sig_bin = sig_idx + 1;
     fB_bins = ceil(N / (2*OSR));
     
-    % Signal bins (3-bin)
+    % Signal bins (3-bin around fundamental)
     sig_bins = sig_bin-1:sig_bin+1;
     sig_bins = sig_bins(sig_bins >= 2 & sig_bins <= fB_bins);
     signal_power = sum(V_out_mag(sig_bins).^2);
     
-    % Noise bins
-    noise_bins = setdiff(2:fB_bins, sig_bins);
+    % Identify harmonic bins to exclude from noise (up to 7th harmonic)
+    harmonic_bins = [];
+    for h = 2:7  % 2nd through 7th harmonics
+        harmonic_bin = h * sig_bin;
+        if harmonic_bin <= fB_bins
+            % Exclude 3 bins around each harmonic
+            harmonic_bins = [harmonic_bins, harmonic_bin-1:harmonic_bin+1];
+        end
+    end
+    harmonic_bins = unique(harmonic_bins);
+    harmonic_bins = harmonic_bins(harmonic_bins >= 2 & harmonic_bins <= fB_bins);
+    
+    % Noise bins = in-band excluding DC (bin 1), signal, and harmonics
+    exclude_bins = unique([sig_bins, harmonic_bins]);
+    noise_bins = setdiff(2:fB_bins, exclude_bins);
     noise_power = sum(V_out_mag(noise_bins).^2);
     
     if noise_power > 0
@@ -292,31 +308,30 @@ end
 
 function SNDR = calculate_sndr(v, u, N, OSR, f_bin)
     %% Calculate SNDR (Signal-to-Noise-and-Distortion Ratio)
+    %% SNDR = Signal Power / (Noise + Distortion) Power
+    %% Signal = fundamental only (NOT harmonics!)
+    %% Noise+Distortion = everything in-band except DC and fundamental
+    %%                    (this includes harmonics in the denominator)
     w = 0.5 * (1 - cos(2*pi*(0:N-1)/N));
     V_out = fft(v .* w) / (N/4);
     V_out_mag = abs(V_out);
     
     fB_bins = ceil(N / (2*OSR));
     
-    % Signal bin (and harmonics)
-    sig_bins = [];
-    for h = 1:5  % Up to 5th harmonic
-        harmonic_bin = h * f_bin;
-        if harmonic_bin <= fB_bins
-            sig_bins = [sig_bins, harmonic_bin-1:harmonic_bin+1];
-        end
-    end
-    sig_bins = unique(sig_bins);
+    % Signal = fundamental only (3 bins)
+    % Note: Use actual signal bin from spectrum, not input f_bin
+    [~, sig_idx] = max(V_out_mag(2:N/2));
+    sig_bin = sig_idx + 1;
+    sig_bins = sig_bin-1:sig_bin+1;
     sig_bins = sig_bins(sig_bins >= 2 & sig_bins <= fB_bins);
-    
     signal_power = sum(V_out_mag(sig_bins).^2);
     
-    % Everything else in band is noise+distortion
-    noise_bins = setdiff(2:fB_bins, sig_bins);
-    noise_power = sum(V_out_mag(noise_bins).^2);
+    % Noise + Distortion = everything in-band except DC and fundamental
+    noise_distortion_bins = setdiff(2:fB_bins, sig_bins);
+    noise_distortion_power = sum(V_out_mag(noise_distortion_bins).^2);
     
-    if noise_power > 0
-        SNDR = 10*log10(signal_power / noise_power);
+    if noise_distortion_power > 0
+        SNDR = 10*log10(signal_power / noise_distortion_power);
     else
         SNDR = inf;
     end
