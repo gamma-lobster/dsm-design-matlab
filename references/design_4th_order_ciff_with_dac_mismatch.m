@@ -300,31 +300,26 @@ function [v_dac, v_adc, thermometer, y_all, bit_weights] = run_dsm_with_flash_ad
         k = sum(therm);
         
         % DWA cell selection with rotation
-        if k == 0
-            % All zeros - no cells activated
-            contribution = -sum(bit_weights);
-            v_dac(i) = contribution * 0.5;
-            % Start position stays same (or could advance by 1)
-        elseif k == n_comparators
-            % All ones - all cells activated
-            contribution = sum(bit_weights);
-            v_dac(i) = contribution * 0.5;
-            % Advance by k (mod n_comparators)
-            dwa_start_idx = mod(dwa_start_idx - 1 + k, n_comparators) + 1;
-        else
-            % Normal case: select k consecutive cells starting from dwa_start_idx
-            contribution = 0;
-            for j = 0:k-1
-                idx = mod(dwa_start_idx - 1 + j, n_comparators) + 1;  % Wrap around
-                if therm(idx)
-                    contribution = contribution + bit_weights(idx);
-                else
-                    contribution = contribution - bit_weights(idx);
-                end
+        % Create DWA thermometer pattern: k consecutive cells starting from dwa_start_idx
+        dwa_therm = zeros(1, n_comparators);
+        for j = 0:k-1
+            idx = mod(dwa_start_idx - 1 + j, n_comparators) + 1;  % Wrap around
+            dwa_therm(idx) = 1;
+        end
+        
+        % Calculate DAC output: selected cells contribute +weight, others -weight
+        contribution = 0;
+        for j = 1:n_comparators
+            if dwa_therm(j)
+                contribution = contribution + bit_weights(j);  % Selected: +weight
+            else
+                contribution = contribution - bit_weights(j);  % Not selected: -weight
             end
-            v_dac(i) = contribution * 0.5;
-            
-            % Update start position for next sample
+        end
+        v_dac(i) = contribution * 0.5;
+        
+        % Update start position for next sample (advance by k)
+        if k > 0 && k < n_comparators
             dwa_start_idx = mod(dwa_start_idx - 1 + k, n_comparators) + 1;
         end
         
