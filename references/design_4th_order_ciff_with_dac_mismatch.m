@@ -121,7 +121,7 @@ harmonic_bins_dbg = harmonic_bins_dbg(harmonic_bins_dbg >= 2 & harmonic_bins_dbg
 sig_bins_dbg = sig_bin_dbg-1:sig_bin_dbg+1;
 sig_bins_dbg = sig_bins_dbg(sig_bins_dbg >= 2 & sig_bins_dbg <= fB_bins_dbg);
 exclude_bins_dbg = unique([sig_bins_dbg, harmonic_bins_dbg]);
-noise_bins_dbg = setdiff(2:fB_bins_dbg, exclude_bins_dbg);
+noise_bins_dbg = setdiff(3:fB_bins_dbg, exclude_bins_dbg);  % Start from bin 3 to exclude DC leakage
 
 fprintf('    In-band noise floor (avg): %.4f (%.1f dB)\n', ...
     mean(V_dbg_mag(noise_bins_dbg)), 20*log10(mean(V_dbg_mag(noise_bins_dbg))+eps));
@@ -451,9 +451,10 @@ function [SNR, ENOB] = calculate_snr(v, u, N, OSR)
     harmonic_bins = unique(harmonic_bins);
     harmonic_bins = harmonic_bins(harmonic_bins >= 2 & harmonic_bins <= fB_bins);
     
-    % Noise bins = in-band excluding DC (bin 1), signal, and harmonics
+    % Noise bins = in-band excluding DC (bin 1), low-freq leakage (bin 2), signal, and harmonics
+    % Note: Bin 2 is excluded because Hann window spreads DC offset into it
     exclude_bins = unique([sig_bins, harmonic_bins]);
-    noise_bins = setdiff(2:fB_bins, exclude_bins);
+    noise_bins = setdiff(3:fB_bins, exclude_bins);  % Start from bin 3, not 2
     noise_power = sum(V_out_mag(noise_bins).^2);
     
     if noise_power > 0
@@ -485,8 +486,9 @@ function SNDR = calculate_sndr(v, u, N, OSR, f_bin)
     sig_bins = sig_bins(sig_bins >= 2 & sig_bins <= fB_bins);
     signal_power = sum(V_out_mag(sig_bins).^2);
     
-    % Noise + Distortion = everything in-band except DC and fundamental
-    noise_distortion_bins = setdiff(2:fB_bins, sig_bins);
+    % Noise + Distortion = everything in-band except DC, low-freq leakage, and fundamental
+    % Note: Bin 2 is excluded because Hann window spreads DC offset into it
+    noise_distortion_bins = setdiff(3:fB_bins, sig_bins);
     noise_distortion_power = sum(V_out_mag(noise_distortion_bins).^2);
     
     if noise_distortion_power > 0
