@@ -97,38 +97,72 @@ fprintf('----------------------------------------\n');
 [SNR_mismatch, ENOB_mismatch] = calculate_snr(v_mismatch_adc, u, N, OSR);
 [SNR_dwa, ENOB_dwa] = calculate_snr(v_dwa_adc, u, N, OSR);
 
-% Debug: Check mismatch case
-fprintf('\n  DEBUG: Mismatch case analysis:\n');
-
-% Check ADC vs DAC output difference
-adc_dac_diff = v_mismatch_adc - v_mismatch_dac;
-fprintf('    Max |ADC - DAC| difference: %.4f V\n', max(abs(adc_dac_diff)));
-fprintf('    RMS |ADC - DAC| difference: %.4f V\n', sqrt(mean(adc_dac_diff.^2)));
-
-% Spectrum of ADC output
+% Debug: Check mismatch case spectrum
+fprintf('\n  DEBUG: Mismatch case spectrum analysis:\n');
 w_dbg = 0.5 * (1 - cos(2*pi*(0:N-1)/N));
-V_adc = fft(v_mismatch_adc .* w_dbg) / (N/4);
-V_adc_mag = abs(V_adc);
+V_dbg = fft(v_mismatch_adc .* w_dbg) / (N/4);
+V_dbg_mag = abs(V_dbg);
 fB_bins_dbg = ceil(N / (2*OSR));
-[~, sig_idx_dbg] = max(V_adc_mag(2:N/2));
+[~, sig_idx_dbg] = max(V_dbg_mag(2:N/2));
 sig_bin_dbg = sig_idx_dbg + 1;
 fprintf('    Signal bin: %d, magnitude: %.4f (%.1f dB)\n', ...
-    sig_bin_dbg, V_adc_mag(sig_bin_dbg), 20*log10(V_adc_mag(sig_bin_dbg)+eps));
+    sig_bin_dbg, V_dbg_mag(sig_bin_dbg), 20*log10(V_dbg_mag(sig_bin_dbg)+eps));
+
+% Calculate noise floor excluding signal and harmonics (same as SNR calc)
+harmonic_bins_dbg = [];
+for h = 2:7
+    harmonic_bin = h * sig_bin_dbg;
+    if harmonic_bin <= fB_bins_dbg
+        harmonic_bins_dbg = [harmonic_bins_dbg, harmonic_bin-1:harmonic_bin+1];
+    end
+end
+harmonic_bins_dbg = unique(harmonic_bins_dbg);
+harmonic_bins_dbg = harmonic_bins_dbg(harmonic_bins_dbg >= 2 & harmonic_bins_dbg <= fB_bins_dbg);
+sig_bins_dbg = sig_bin_dbg-1:sig_bin_dbg+1;
+sig_bins_dbg = sig_bins_dbg(sig_bins_dbg >= 2 & sig_bins_dbg <= fB_bins_dbg);
+exclude_bins_dbg = unique([sig_bins_dbg, harmonic_bins_dbg]);
+noise_bins_dbg = setdiff(2:fB_bins_dbg, exclude_bins_dbg);
+
 fprintf('    In-band noise floor (avg): %.4f (%.1f dB)\n', ...
-    mean(V_adc_mag(2:fB_bins_dbg)), 20*log10(mean(V_adc_mag(2:fB_bins_dbg))+eps));
-fprintf('    fB_bins: %d\n', fB_bins_dbg);
+    mean(V_dbg_mag(noise_bins_dbg)), 20*log10(mean(V_dbg_mag(noise_bins_dbg))+eps));
+fprintf('    fB_bins: %d, noise bins: %d\n', fB_bins_dbg, length(noise_bins_dbg));
 
-% Spectrum of DAC output (feedback)
-V_dac = fft(v_mismatch_dac .* w_dbg) / (N/4);
-V_dac_mag = abs(V_dac);
-fprintf('    DAC in-band noise floor (avg): %.4f (%.1f dB)\n', ...
-    mean(V_dac_mag(2:fB_bins_dbg)), 20*log10(mean(V_dac_mag(2:fB_bins_dbg))+eps));
+% Check harmonic bins
+fprintf('\n    Signal location: bin %d (f = %.2f kHz)\n', ...
+    sig_bin_dbg, sig_bin_dbg/N*fs/1000);
+fprintf('    Expected harmonics at bins: ');
+for h = 2:7
+    fprintf('%d ', h*sig_bin_dbg);
+end
+fprintf('\n\n');
 
-% Check bit weights
-fprintf('\n    Bit weights statistics:\n');
-fprintf('      Mean: %.6f (nominal: %.6f)\n', mean(bit_weights), (2*V_fs)/(2^n_bits-1));
-fprintf('      Std: %.6f (%.2f%%)\n', std(bit_weights), std(bit_weights)/mean(bit_weights)*100);
-fprintf('      Max deviation: %.2f%%\n', max(abs(bit_weights - mean(bit_weights)))/mean(bit_weights)*100);
+fprintf('    Harmonic bins (excluded from noise):\n');
+for h = 2:7
+    harmonic_bin = h * sig_bin_dbg;
+    if harmonic_bin <= fB_bins_dbg
+        fprintf('      %dth harmonic: bin %d, magnitude: %.4f (%.1f dB)\n', ...
+            h, harmonic_bin, V_dbg_mag(harmonic_bin), 20*log10(V_dbg_mag(harmonic_bin)+eps));
+        % Show 3-bin window
+        fprintf('        (bins %d-%d: %.4f, %.4f, %.4f)\n', ...
+            harmonic_bin-1, harmonic_bin+1, ...
+            V_dbg_mag(harmonic_bin-1), V_dbg_mag(harmonic_bin), V_dbg_mag(harmonic_bin+1));
+    end
+end
+
+% Check if there are spikes in noise bins
+fprintf('\n    Top 10 strongest bins in noise region:\n');
+[sorted_mag, sorted_idx] = sort(V_dbg_mag(noise_bins_dbg), 'descend');
+for i = 1:min(10, length(sorted_idx))
+    bin_num = noise_bins_dbg(sorted_idx(i));
+    freq_khz = bin_num/N*fs/1000;
+    harmonic_order = round(bin_num / sig_bin_dbg);
+    fprintf('      Bin %d (%.2f kHz): %.4f (%.1f dB)', ...
+        bin_num, freq_khz, sorted_mag(i), 20*log10(sorted_mag(i)+eps));
+    if harmonic_order >= 2 && harmonic_order <= 7
+        fprintf(' *** %dth harmonic ***', harmonic_order);
+    end
+    fprintf('\n');
+end
 
 % Calculate SNDR for mismatch cases (includes distortion)
 SNDR_mismatch = calculate_sndr(v_mismatch_adc, u, N, OSR, f_bin);
