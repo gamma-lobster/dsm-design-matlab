@@ -97,6 +97,39 @@ fprintf('----------------------------------------\n');
 [SNR_mismatch, ENOB_mismatch] = calculate_snr(v_mismatch_adc, u, N, OSR);
 [SNR_dwa, ENOB_dwa] = calculate_snr(v_dwa_adc, u, N, OSR);
 
+% Debug: Check mismatch case
+fprintf('\n  DEBUG: Mismatch case analysis:\n');
+
+% Check ADC vs DAC output difference
+adc_dac_diff = v_mismatch_adc - v_mismatch_dac;
+fprintf('    Max |ADC - DAC| difference: %.4f V\n', max(abs(adc_dac_diff)));
+fprintf('    RMS |ADC - DAC| difference: %.4f V\n', sqrt(mean(adc_dac_diff.^2)));
+
+% Spectrum of ADC output
+w_dbg = 0.5 * (1 - cos(2*pi*(0:N-1)/N));
+V_adc = fft(v_mismatch_adc .* w_dbg) / (N/4);
+V_adc_mag = abs(V_adc);
+fB_bins_dbg = ceil(N / (2*OSR));
+[~, sig_idx_dbg] = max(V_adc_mag(2:N/2));
+sig_bin_dbg = sig_idx_dbg + 1;
+fprintf('    Signal bin: %d, magnitude: %.4f (%.1f dB)\n', ...
+    sig_bin_dbg, V_adc_mag(sig_bin_dbg), 20*log10(V_adc_mag(sig_bin_dbg)+eps));
+fprintf('    In-band noise floor (avg): %.4f (%.1f dB)\n', ...
+    mean(V_adc_mag(2:fB_bins_dbg)), 20*log10(mean(V_adc_mag(2:fB_bins_dbg))+eps));
+fprintf('    fB_bins: %d\n', fB_bins_dbg);
+
+% Spectrum of DAC output (feedback)
+V_dac = fft(v_mismatch_dac .* w_dbg) / (N/4);
+V_dac_mag = abs(V_dac);
+fprintf('    DAC in-band noise floor (avg): %.4f (%.1f dB)\n', ...
+    mean(V_dac_mag(2:fB_bins_dbg)), 20*log10(mean(V_dac_mag(2:fB_bins_dbg))+eps));
+
+% Check bit weights
+fprintf('\n    Bit weights statistics:\n');
+fprintf('      Mean: %.6f (nominal: %.6f)\n', mean(bit_weights), (2*V_fs)/(2^n_bits-1));
+fprintf('      Std: %.6f (%.2f%%)\n', std(bit_weights), std(bit_weights)/mean(bit_weights)*100);
+fprintf('      Max deviation: %.2f%%\n', max(abs(bit_weights - mean(bit_weights)))/mean(bit_weights)*100);
+
 % Calculate SNDR for mismatch cases (includes distortion)
 SNDR_mismatch = calculate_sndr(v_mismatch_adc, u, N, OSR, f_bin);
 SNDR_dwa = calculate_sndr(v_dwa_adc, u, N, OSR, f_bin);
