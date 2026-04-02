@@ -330,13 +330,19 @@ A_in = 0.1;   % Lower input for stability
 
 ## SNR Calculation (Critical!)
 
-**CORRECT:** Find signal in **OUTPUT spectrum**
+**CORRECT:** Find signal in **OUTPUT spectrum**, **limit search to in-band only**
 ```matlab
 V_out = fft(v .* w) / (N/4);
-[~, sig_idx] = max(V_out_mag(2:N/2));
+fB_bins = ceil(N / (2*OSR));
+[~, sig_idx] = max(V_out_mag(2:fB_bins));  % Search only in-band
 sig_power = sum(V_out_mag(sig_bins).^2);
 noise_power = sum(V_out_mag(noise_bins).^2);
 SNR = 10*log10(sig_power / noise_power);
+```
+
+**WRONG:** Searching beyond signal band
+```matlab
+[~, sig_idx] = max(V_out_mag(2:N/2));  % May find spur outside band!
 ```
 
 **WRONG:** Finding signal in noise spectrum
@@ -359,8 +365,10 @@ noise_bins = setdiff(3:fB_bins, [sig_bins, harmonic_bins]);  % Start from bin 3
 ### SNR vs SNDR
 
 - **SNR:** Signal / (Noise only). Excludes harmonic distortion.
+  - Signal search: limited to in-band bins (2:fB_bins)
   - Noise bins: Everything in-band except DC, signal, harmonics, and bin 2
 - **SNDR:** Signal / (Noise + Distortion). Includes harmonics.
+  - Signal search: limited to in-band bins (2:fB_bins)
   - Noise bins: Everything in-band except DC, signal, and bin 2
 
 ## Troubleshooting

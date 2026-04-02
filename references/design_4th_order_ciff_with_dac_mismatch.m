@@ -97,73 +97,6 @@ fprintf('----------------------------------------\n');
 [SNR_mismatch, ENOB_mismatch] = calculate_snr(v_mismatch_adc, u, N, OSR);
 [SNR_dwa, ENOB_dwa] = calculate_snr(v_dwa_adc, u, N, OSR);
 
-% Debug: Check mismatch case spectrum
-fprintf('\n  DEBUG: Mismatch case spectrum analysis:\n');
-w_dbg = 0.5 * (1 - cos(2*pi*(0:N-1)/N));
-V_dbg = fft(v_mismatch_adc .* w_dbg) / (N/4);
-V_dbg_mag = abs(V_dbg);
-fB_bins_dbg = ceil(N / (2*OSR));
-[~, sig_idx_dbg] = max(V_dbg_mag(2:N/2));
-sig_bin_dbg = sig_idx_dbg + 1;
-fprintf('    Signal bin: %d, magnitude: %.4f (%.1f dB)\n', ...
-    sig_bin_dbg, V_dbg_mag(sig_bin_dbg), 20*log10(V_dbg_mag(sig_bin_dbg)+eps));
-
-% Calculate noise floor excluding signal and harmonics (same as SNR calc)
-harmonic_bins_dbg = [];
-for h = 2:7
-    harmonic_bin = h * sig_bin_dbg;
-    if harmonic_bin <= fB_bins_dbg
-        harmonic_bins_dbg = [harmonic_bins_dbg, harmonic_bin-1:harmonic_bin+1];
-    end
-end
-harmonic_bins_dbg = unique(harmonic_bins_dbg);
-harmonic_bins_dbg = harmonic_bins_dbg(harmonic_bins_dbg >= 2 & harmonic_bins_dbg <= fB_bins_dbg);
-sig_bins_dbg = sig_bin_dbg-1:sig_bin_dbg+1;
-sig_bins_dbg = sig_bins_dbg(sig_bins_dbg >= 2 & sig_bins_dbg <= fB_bins_dbg);
-exclude_bins_dbg = unique([sig_bins_dbg, harmonic_bins_dbg]);
-noise_bins_dbg = setdiff(3:fB_bins_dbg, exclude_bins_dbg);  % Start from bin 3 to exclude DC leakage
-
-fprintf('    In-band noise floor (avg): %.4f (%.1f dB)\n', ...
-    mean(V_dbg_mag(noise_bins_dbg)), 20*log10(mean(V_dbg_mag(noise_bins_dbg))+eps));
-fprintf('    fB_bins: %d, noise bins: %d\n', fB_bins_dbg, length(noise_bins_dbg));
-
-% Check harmonic bins
-fprintf('\n    Signal location: bin %d (f = %.2f kHz)\n', ...
-    sig_bin_dbg, sig_bin_dbg/N*fs/1000);
-fprintf('    Expected harmonics at bins: ');
-for h = 2:7
-    fprintf('%d ', h*sig_bin_dbg);
-end
-fprintf('\n\n');
-
-fprintf('    Harmonic bins (excluded from noise):\n');
-for h = 2:7
-    harmonic_bin = h * sig_bin_dbg;
-    if harmonic_bin <= fB_bins_dbg
-        fprintf('      %dth harmonic: bin %d, magnitude: %.4f (%.1f dB)\n', ...
-            h, harmonic_bin, V_dbg_mag(harmonic_bin), 20*log10(V_dbg_mag(harmonic_bin)+eps));
-        % Show 3-bin window
-        fprintf('        (bins %d-%d: %.4f, %.4f, %.4f)\n', ...
-            harmonic_bin-1, harmonic_bin+1, ...
-            V_dbg_mag(harmonic_bin-1), V_dbg_mag(harmonic_bin), V_dbg_mag(harmonic_bin+1));
-    end
-end
-
-% Check if there are spikes in noise bins
-fprintf('\n    Top 10 strongest bins in noise region:\n');
-[sorted_mag, sorted_idx] = sort(V_dbg_mag(noise_bins_dbg), 'descend');
-for i = 1:min(10, length(sorted_idx))
-    bin_num = noise_bins_dbg(sorted_idx(i));
-    freq_khz = bin_num/N*fs/1000;
-    harmonic_order = round(bin_num / sig_bin_dbg);
-    fprintf('      Bin %d (%.2f kHz): %.4f (%.1f dB)', ...
-        bin_num, freq_khz, sorted_mag(i), 20*log10(sorted_mag(i)+eps));
-    if harmonic_order >= 2 && harmonic_order <= 7
-        fprintf(' *** %dth harmonic ***', harmonic_order);
-    end
-    fprintf('\n');
-end
-
 % Calculate SNDR for mismatch cases (includes distortion)
 SNDR_mismatch = calculate_sndr(v_mismatch_adc, u, N, OSR, f_bin);
 SNDR_dwa = calculate_sndr(v_dwa_adc, u, N, OSR, f_bin);
@@ -197,12 +130,36 @@ inldnl = calculate_inl_dnl_thermometer(bit_weights, V_fs, n_bits);
 fprintf('  INL (max): %.3f LSB\n', max(abs(inldnl.inl)));
 fprintf('  DNL (max): %.3f LSB\n\n', max(abs(inldnl.dnl)));
 
-%% Step 9: Generate Plots
-fprintf('[Step 9] Generate Comparison Plots\n');
+%% Step 9: SNR Sweep vs Input Amplitude
+fprintf('[Step 9] SNR Sweep vs Input Amplitude\n');
 fprintf('----------------------------------------\n');
 
-generate_comparison_plots(u, v_ideal_adc, v_mismatch_adc, v_dwa_adc, v_ideal_dac, v_mismatch_dac, ...
-    therm_ideal, therm_mismatch, n_bits, fs, N, OSR, SNR_ideal, SNR_mismatch, SNR_dwa, bit_weights, V_fs);
+% Run SNR sweep for each case - log scale from -100dB to +6dB
+% 5 points per decade, spanning -100dB to +6dB
+amp_dB_min = -100;
+amp_dB_max = 6;
+num_decades = (amp_dB_max - amp_dB_min) / 20;
+num_points = round(num_decades * 5) + 1;  % 5 points per decade
+
+amp_values_dB = linspace(amp_dB_min, amp_dB_max, num_points);
+amp_values = 10.^(amp_values_dB / 20);  % Convert dB to linear (voltage ratio)
+
+fprintf('  Running SNR sweep (%d points, %.0f dB to %.0f dB)...\n', ...
+    length(amp_values), amp_dB_min, amp_dB_max);
+fprintf('    Linear range: %.2e to %.2f\n', min(amp_values), max(amp_values));
+[SNR_sweep_ideal, SNDR_sweep_ideal] = run_snr_sweep(amp_values, u, A_mat, B_mat, C_mat, D_mat, n_bits, V_fs, N, OSR, f_bin, 'ideal', [], 0);
+[SNR_sweep_static, SNDR_sweep_static] = run_snr_sweep(amp_values, u, A_mat, B_mat, C_mat, D_mat, n_bits, V_fs, N, OSR, f_bin, 'static', bit_weights, mismatch_pct);
+[SNR_sweep_dwa, SNDR_sweep_dwa] = run_snr_sweep(amp_values, u, A_mat, B_mat, C_mat, D_mat, n_bits, V_fs, N, OSR, f_bin, 'dwa', bit_weights, mismatch_pct);
+fprintf('  Sweep complete.\n\n');
+
+%% Step 10: Generate Streamlined Plots
+fprintf('[Step 10] Generate Streamlined Plots\n');
+fprintf('----------------------------------------\n');
+
+generate_4quadrant_plots(ntf, u, v_ideal_adc, v_mismatch_adc, v_dwa_adc, ...
+    amp_values_dB, SNR_sweep_ideal, SNR_sweep_static, SNR_sweep_dwa, ...
+    SNDR_sweep_ideal, SNDR_sweep_static, SNDR_sweep_dwa, ...
+    n_bits, fs, N, OSR, SNR_ideal, SNR_mismatch, SNR_dwa, bit_weights, V_fs);
 
 %% Summary
 fprintf('\n============================================================\n');
@@ -234,6 +191,10 @@ function [v_dac, v_adc, thermometer, y_all] = run_dsm_with_flash_adc(u, A_mat, B
     n_states = size(A_mat, 1);
     n_levels = 2^n_bits;
     
+    % Calculate dither: Gaussian noise with std = LSB/4
+    LSB = 2 * V_fs / (n_levels - 1);
+    dither_std = LSB / 4;
+    
     x = zeros(n_states, 1);
     v_dac = zeros(1, N);
     v_adc = zeros(1, N);
@@ -251,8 +212,11 @@ function [v_dac, v_adc, thermometer, y_all] = run_dsm_with_flash_adc(u, A_mat, B
         y = C_mat * x + D_mat(1)*u(i) + D_mat(2)*v_prev;
         y_all(i) = y;
         
+        % Add dither to quantizer input
+        y_dithered = y + dither_std * randn();
+        
         % Flash ADC quantization
-        [therm, binary_adc, ~] = flash_adc_quantizer(y, V_fs, n_bits);
+        [therm, binary_adc, ~] = flash_adc_quantizer(y_dithered, V_fs, n_bits);
         thermometer(i, :) = therm;
         v_adc(i) = binary_adc;  % This is the DSM output
         
@@ -273,6 +237,10 @@ function [v_dac, v_adc, thermometer, y_all, bit_weights] = run_dsm_with_flash_ad
     n_states = size(A_mat, 1);
     n_levels = 2^n_bits;
     n_comparators = n_levels - 1;
+    
+    % Calculate dither: Gaussian noise with std = LSB/4
+    LSB = 2 * V_fs / (n_levels - 1);
+    dither_std = LSB / 4;
     
     % Generate mismatched bit weights (once)
     if nargin >= 9 && ~isempty(seed)
@@ -299,8 +267,11 @@ function [v_dac, v_adc, thermometer, y_all, bit_weights] = run_dsm_with_flash_ad
         y = C_mat * x + D_mat(1)*u(i) + D_mat(2)*v_prev;
         y_all(i) = y;
         
+        % Add dither to quantizer input
+        y_dithered = y + dither_std * randn();
+        
         % Flash ADC quantization
-        [therm, binary_adc, ~] = flash_adc_quantizer(y, V_fs, n_bits);
+        [therm, binary_adc, ~] = flash_adc_quantizer(y_dithered, V_fs, n_bits);
         thermometer(i, :) = therm;
         v_adc(i) = binary_adc;  % This is the actual DSM output
         
@@ -330,6 +301,10 @@ function [v_dac, v_adc, thermometer, y_all, bit_weights] = run_dsm_with_flash_ad
     n_levels = 2^n_bits;
     n_comparators = n_levels - 1;
     
+    % Calculate dither: Gaussian noise with std = LSB/4
+    LSB = 2 * V_fs / (n_levels - 1);
+    dither_std = LSB / 4;
+    
     % Generate mismatched bit weights (once)
     if nargin >= 9 && ~isempty(seed)
         rng(seed);
@@ -358,8 +333,11 @@ function [v_dac, v_adc, thermometer, y_all, bit_weights] = run_dsm_with_flash_ad
         y = C_mat * x + D_mat(1)*u(i) + D_mat(2)*v_prev;
         y_all(i) = y;
         
+        % Add dither to quantizer input
+        y_dithered = y + dither_std * randn();
+        
         % Flash ADC quantization
-        [therm, binary_adc, ~] = flash_adc_quantizer(y, V_fs, n_bits);
+        [therm, binary_adc, ~] = flash_adc_quantizer(y_dithered, V_fs, n_bits);
         thermometer(i, :) = therm;
         v_adc(i) = binary_adc;  % This is the actual DSM output
         
@@ -429,10 +407,11 @@ function [SNR, ENOB] = calculate_snr(v, u, N, OSR)
     V_out = fft(v .* w) / (N/4);
     V_out_mag = abs(V_out);
     
-    % Find fundamental signal
-    [~, sig_idx] = max(V_out_mag(2:N/2));
-    sig_bin = sig_idx + 1;
     fB_bins = ceil(N / (2*OSR));
+    
+    % Find fundamental signal - limit search to in-band only (exclude DC)
+    [~, sig_idx] = max(V_out_mag(2:fB_bins));
+    sig_bin = sig_idx + 1;
     
     % Signal bins (3-bin around fundamental)
     sig_bins = sig_bin-1:sig_bin+1;
@@ -480,7 +459,8 @@ function SNDR = calculate_sndr(v, u, N, OSR, f_bin)
     
     % Signal = fundamental only (3 bins)
     % Note: Use actual signal bin from spectrum, not input f_bin
-    [~, sig_idx] = max(V_out_mag(2:N/2));
+    % Limit search to in-band only (exclude DC)
+    [~, sig_idx] = max(V_out_mag(2:fB_bins));
     sig_bin = sig_idx + 1;
     sig_bins = sig_bin-1:sig_bin+1;
     sig_bins = sig_bins(sig_bins >= 2 & sig_bins <= fB_bins);
@@ -534,116 +514,176 @@ function inldnl = calculate_inl_dnl_thermometer(bit_weights, v_fs, n_bits)
     inldnl.code = 0:n_levels-1;
 end
 
-function generate_comparison_plots(u, v_ideal_adc, v_mismatch_adc, v_dwa_adc, v_ideal_dac, v_mismatch_dac, ...
-    therm_ideal, therm_mismatch, n_bits, fs, N, OSR, SNR_ideal, SNR_mismatch, SNR_dwa, bit_weights, V_fs)
-    %% Generate comparison plots
-    n_comparators = size(therm_ideal, 2);
+function [SNR_sweep, SNDR_sweep] = run_snr_sweep(amp_values, u_template, A_mat, B_mat, C_mat, D_mat, n_bits, V_fs, N, OSR, f_bin, mode, bit_weights, mismatch_pct)
+    %% Run SNR sweep over input amplitudes
+    %% mode: 'ideal', 'static', or 'dwa'
+    
+    num_amps = length(amp_values);
+    SNR_sweep = zeros(1, num_amps);
+    SNDR_sweep = zeros(1, num_amps);
+    
+    n_states = size(A_mat, 1);
+    n_levels = 2^n_bits;
+    n_comparators = n_levels - 1;
+    
+    % Generate mismatch weights if needed
+    if ~isempty(bit_weights) && ~isempty(mismatch_pct)
+        rng(42);  % Fixed seed for consistency
+        nominal_weight = (2 * V_fs) / n_comparators;
+        bit_weights = nominal_weight * (1 + mismatch_pct * randn(1, n_comparators));
+    end
+    
+    for idx = 1:num_amps
+        A_in = amp_values(idx);
+        
+        % Scale input signal
+        u = A_in * u_template / max(abs(u_template));
+        
+        % Run simulation based on mode
+        switch mode
+            case 'ideal'
+                [~, v_adc, ~, ~] = run_dsm_with_flash_adc(u, A_mat, B_mat, C_mat, D_mat, n_bits, V_fs);
+            case 'static'
+                [~, v_adc, ~, ~, ~] = run_dsm_with_flash_adc_mismatch(u, A_mat, B_mat, C_mat, D_mat, n_bits, V_fs, mismatch_pct, []);
+            case 'dwa'
+                [~, v_adc, ~, ~] = run_dsm_with_flash_adc_dwa(u, A_mat, B_mat, C_mat, D_mat, n_bits, V_fs, mismatch_pct, []);
+        end
+        
+        % Calculate SNR
+        [SNR_sweep(idx), ~] = calculate_snr(v_adc, u, N, OSR);
+        SNDR_sweep(idx) = calculate_sndr(v_adc, u, N, OSR, f_bin);
+        
+        % Debug: print first few and last few values
+        amp_dB_current = 20*log10(A_in);
+        if idx <= 5 || idx >= num_amps - 2
+            fprintf('      Amp %.0f dB (%.2e): SNR=%.2f, SNDR=%.2f\n', ...
+                amp_dB_current, A_in, SNR_sweep(idx), SNDR_sweep(idx));
+        end
+    end
+end
+
+function generate_4quadrant_plots(ntf, u, v_ideal_adc, v_mismatch_adc, v_dwa_adc, ...
+    amp_dB, SNR_ideal_sweep, SNR_static_sweep, SNR_dwa_sweep, ...
+    SNDR_ideal_sweep, SNDR_static_sweep, SNDR_dwa_sweep, ...
+    n_bits, fs, N, OSR, SNR_ideal, SNR_mismatch, SNR_dwa, bit_weights, V_fs)
+    %% Generate 4-quadrant streamlined plots
+    %% Quadrant 1: NTF (top-left)
+    %% Quadrant 2: Spectrum (top-right)
+    %% Quadrant 3: Time domain (bottom-right)
+    %% Quadrant 4: SNR Sweep (bottom-left)
+    
     n_plot = 500;
     t = (0:n_plot-1)/fs*1e6;  % microseconds
     
-    figure('Name', 'DSM with Flash ADC - Ideal vs Mismatched DAC', 'Position', [50 50 1600 1200]);
+    figure('Name', '4th-Order CIFF DSM - 4 Quadrant View', 'Position', [50 50 1400 1000]);
     
-    % 1. Time domain comparison (ADC outputs)
-    subplot(3, 3, 1);
-    plot(t, u(1:n_plot), 'b-', 'LineWidth', 1); hold on;
-    stairs(t, v_ideal_adc(1:n_plot), 'g-', 'LineWidth', 1.5);
-    stairs(t, v_mismatch_adc(1:n_plot), 'r-', 'LineWidth', 1.5);
+    % === QUADRANT 1: NTF (Top-Left) ===
+    subplot(2, 2, 1);
+    N_fft = 8192;
+    freqs_norm = (0:N_fft-1)/N_fft;
+    z = exp(2*pi*1j*freqs_norm);
+    
+    [z_ntf, p_ntf, k_ntf] = zpkdata(ntf);
+    z_ntf = z_ntf{1};
+    p_ntf = p_ntf{1};
+    
+    NTF_resp = ones(1, N_fft);
+    for i = 1:N_fft
+        zi = z(i);
+        num = k_ntf * prod(zi - z_ntf);
+        den = prod(zi - p_ntf);
+        NTF_resp(i) = num / den;
+    end
+    NTF_dB = 20*log10(abs(NTF_resp) + eps);
+    freqs_ntf = freqs_norm * fs;
+    
+    f_log = logspace(log10(100), log10(fs/2), 5000);
+    freqs_log_norm = f_log / fs;
+    NTF_log = interp1(freqs_norm, NTF_dB, freqs_log_norm, 'linear', 'extrap');
+    
+    semilogx(f_log/1000, NTF_log, 'b-', 'LineWidth', 1.5); hold on;
+    fB_kHz = fs / (2*OSR) / 1000;
+    plot([fB_kHz fB_kHz], [-100 40], 'm--', 'LineWidth', 2);
+    [max_ntf, max_idx] = max(NTF_dB);
+    f_max_kHz = freqs_norm(max_idx) * fs / 1000;
+    plot(f_max_kHz, max_ntf, 'ro', 'MarkerSize', 10, 'LineWidth', 2);
+    for i = 1:length(z_ntf)
+        zi = z_ntf(i);
+        if abs(zi) < 1.1
+            f_notch = abs(angle(zi)) / (2*pi) * fs;
+            if f_notch < fs/2 && f_notch > 100
+                plot(f_notch/1000, -70, 'gv', 'MarkerSize', 8);
+            end
+        end
+    end
     hold off;
-    xlabel('Time (\mus)'); ylabel('Amplitude (V)');
-    title('ADC Output: Time Domain');
-    legend('Input', 'Ideal DAC', 'Mismatched DAC', 'Location', 'best');
+    xlabel('Frequency (kHz)', 'FontSize', 12);
+    ylabel('Magnitude (dB)', 'FontSize', 12);
+    title(sprintf('NTF (Order 4, H_{inf}=%.1f)', max_ntf), 'FontSize', 12);
+    legend('NTF', 'Signal BW', 'H_{inf}', 'Notches', 'Location', 'northwest');
     grid on;
+    axis([100/1000 fs/2000 -100 40]);
     
-    % 2. Spectra comparison (using ADC output)
-    subplot(3, 3, 2);
+    % === QUADRANT 2: Spectrum (Top-Right) ===
+    subplot(2, 2, 2);
     w = 0.5 * (1 - cos(2*pi*(0:N-1)/N));
     V_ideal = fft(v_ideal_adc .* w) / (N/4);
     V_mismatch = fft(v_mismatch_adc .* w) / (N/4);
     V_dwa = fft(v_dwa_adc .* w) / (N/4);
     freqs = (0:N/2)/N*fs/1000;
     
+    % Find signal frequency for annotation
+    [~, sig_idx] = max(abs(V_mismatch(2:N/2)));
+    f_sig_kHz = (sig_idx+1)*fs/N/1000;
+    
     semilogx(freqs, 20*log10(abs(V_ideal(1:N/2+1)) + eps), 'g-', 'LineWidth', 1.5); hold on;
     semilogx(freqs, 20*log10(abs(V_mismatch(1:N/2+1)) + eps), 'r-', 'LineWidth', 1);
     semilogx(freqs, 20*log10(abs(V_dwa(1:N/2+1)) + eps), 'b-', 'LineWidth', 1);
-    fB_kHz = fs / (2*OSR) / 1000;
     plot([fB_kHz fB_kHz], [-140 10], 'm--', 'LineWidth', 2);
+    plot([f_sig_kHz f_sig_kHz], [-140 10], 'c--', 'LineWidth', 1.5);
     hold off;
-    xlabel('Frequency (kHz)'); ylabel('Magnitude (dBFS/NBW)');
-    title(sprintf('ADC Output Spectrum\nG: SNR=%.1f dB, R: SNR=%.1f dB, B: SNR=%.1f dB', SNR_ideal, SNR_mismatch, SNR_dwa));
-    legend('Ideal', 'Static', 'DWA', 'Signal BW', 'Location', 'northwest');
+    xlabel('Frequency (kHz)', 'FontSize', 12);
+    ylabel('Magnitude (dBFS/NBW)', 'FontSize', 12);
+    title(sprintf('Output Spectrum\nG:SNR=%.1f, R:SNR=%.1f, B:SNR=%.1f dB', SNR_ideal, SNR_mismatch, SNR_dwa), 'FontSize', 12);
+    legend('Ideal', 'Static', 'DWA', 'Signal BW', 'Signal', 'Location', 'southwest');
     grid on;
-    axis([100 fs/2000 -140 10]);
+    % Start from frequency below signal (e.g., 1 kHz or signal_freq/10)
+    f_min = min(1000, f_sig_kHz/10);
+    axis([f_min fs/2000 -140 10]);
     
-    % 3. Mismatch-induced error (ADC outputs) - Static vs DWA
-    subplot(3, 3, 3);
-    mismatch_error = v_ideal_adc - v_mismatch_adc;
-    dwa_error = v_ideal_adc - v_dwa_adc;
-    plot(t, mismatch_error(1:n_plot), 'r-', 'LineWidth', 1); hold on;
-    plot(t, dwa_error(1:n_plot), 'b-', 'LineWidth', 1);
+    % === QUADRANT 3: Time Domain (Bottom-Right) ===
+    subplot(2, 2, 3);
+    stairs(t, v_mismatch_adc(1:n_plot), 'r-', 'LineWidth', 1.5); hold on;
+    stairs(t, v_dwa_adc(1:n_plot), 'b-', 'LineWidth', 1);
+    stairs(t, v_ideal_adc(1:n_plot), 'g-', 'LineWidth', 1);
+    stairs(t, u(1:n_plot), 'm--', 'LineWidth', 1);
     hold off;
-    xlabel('Time (\mus)'); ylabel('Error (V)');
-    title('Error: Ideal - Output');
-    legend('Static', 'DWA', 'Location', 'best');
-    grid on; yline(0, 'k--', 'Alpha', 0.3);
-    
-    % 4. Ideal DAC thermometer code
-    subplot(3, 3, 4);
-    imagesc(t, 0:n_comparators-1, therm_ideal(1:n_plot, :)');
-    colormap(gca, [1 0.3 0.3; 0.2 1 0.2]);
-    set(gca, 'YDir', 'normal');
-    xlabel('Time (\mus)'); ylabel('Comparator #');
-    title('Ideal DAC: Thermometer Code');
-    
-    % 5. Mismatched DAC thermometer code
-    subplot(3, 3, 5);
-    imagesc(t, 0:n_comparators-1, therm_mismatch(1:n_plot, :)');
-    colormap(gca, [1 0.3 0.3; 0.2 1 0.2]);
-    set(gca, 'YDir', 'normal');
-    xlabel('Time (\mus)'); ylabel('Comparator #');
-    title('Static DAC: Thermometer Code');
-    
-    % 6. Histogram comparison (ADC outputs)
-    subplot(3, 3, 6);
-    histogram(v_ideal_adc, 32, 'FaceColor', 'g', 'FaceAlpha', 0.5); hold on;
-    histogram(v_mismatch_adc, 32, 'FaceColor', 'r', 'FaceAlpha', 0.5);
-    histogram(v_dwa_adc, 32, 'FaceColor', 'b', 'FaceAlpha', 0.3);
-    hold off;
-    xlabel('Output Level (V)'); ylabel('Count');
-    title('ADC Output Histogram');
-    legend('Ideal', 'Static', 'DWA', 'Location', 'best');
-    
-    % 7. SNR comparison bar chart
-    subplot(3, 3, 7);
-    bar_data = [SNR_ideal, SNR_mismatch, SNR_dwa];
-    bar_colors = {'g', 'r', 'b'};
-    h = bar(bar_data);
-    h.FaceColor = 'flat';
-    h.CData(1,:) = [0.2 0.8 0.2];
-    h.CData(2,:) = [0.8 0.2 0.2];
-    h.CData(3,:) = [0.2 0.4 0.8];
-    set(gca, 'XTickLabel', {'Ideal', 'Static', 'DWA'});
-    ylabel('SNR (dB)');
-    title(sprintf('SNR Comparison\nDWA Improvement: +%.1f dB', SNR_dwa - SNR_mismatch));
+    xlabel('Time (\mus)', 'FontSize', 12);
+    ylabel('Amplitude (V)', 'FontSize', 12);
+    title('Time Domain Output', 'FontSize', 12);
+    legend('Static', 'DWA', 'Ideal', 'Input', 'Location', 'best');
     grid on;
     
-    % 8. INL plot
-    subplot(3, 3, 8);
-    inldnl = calculate_inl_dnl_thermometer(bit_weights, V_fs, n_bits);
-    stem(inldnl.code, inldnl.inl, 'filled', 'MarkerFaceColor', 'b');
-    xlabel('DAC Code'); ylabel('INL (LSB)');
-    title(sprintf('Integral Nonlinearity\nMax: %.3f LSB', max(abs(inldnl.inl))));
-    grid on; yline(0, 'k--', 'Alpha', 0.3);
+    % === QUADRANT 4: SNR Sweep (Bottom-Left) ===
+    subplot(2, 2, 4);
+    % Filter out Inf/NaN values for plotting but keep dB scale
+    valid_ideal = isfinite(SNDR_ideal_sweep);
+    valid_static = isfinite(SNDR_static_sweep);
+    valid_dwa = isfinite(SNDR_dwa_sweep);
     
-    % 9. DNL plot
-    subplot(3, 3, 9);
-    stem(inldnl.code, inldnl.dnl, 'filled', 'MarkerFaceColor', 'r');
-    xlabel('DAC Code'); ylabel('DNL (LSB)');
-    title(sprintf('Differential Nonlinearity\nMax: %.3f LSB', max(abs(inldnl.dnl))));
-    grid on; yline(0, 'k--', 'Alpha', 0.3);
-    yline(1, 'g--', 'Alpha', 0.3);
-    yline(-1, 'g--', 'Alpha', 0.3);
+    plot(amp_dB(valid_ideal), SNDR_ideal_sweep(valid_ideal), 'g-o', 'LineWidth', 1.5, 'MarkerSize', 6); hold on;
+    plot(amp_dB(valid_static), SNDR_static_sweep(valid_static), 'r-o', 'LineWidth', 1.5, 'MarkerSize', 6);
+    plot(amp_dB(valid_dwa), SNDR_dwa_sweep(valid_dwa), 'b-o', 'LineWidth', 1.5, 'MarkerSize', 6);
+    hold off;
+    xlabel('Input Amplitude (dBFS)', 'FontSize', 12);
+    ylabel('SNDR (dB)', 'FontSize', 12);
+    title('SNDR vs Input Amplitude', 'FontSize', 12);
+    legend('Ideal', 'Static', 'DWA', 'Location', 'southeast');
+    grid on;
+    % Show full range from -100dB to +6dB
+    xlim([min(amp_dB) max(amp_dB)]);
     
     % Save
-    saveas(gcf, 'dsm_4th_order_dac_mismatch_comparison.png');
-    fprintf('  Saved: dsm_4th_order_dac_mismatch_comparison.png\n');
+    saveas(gcf, 'dsm_4th_order_4quadrant.png');
+    fprintf('  Saved: dsm_4th_order_4quadrant.png\n');
 end
