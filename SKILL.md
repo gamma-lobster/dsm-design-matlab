@@ -345,6 +345,24 @@ noise = v - u;
 V_noise = fft(noise .* w);  % DON'T find signal here!
 ```
 
+### DC Leakage from Hann Window
+
+When using Hann windowing, DC offset (from DAC mismatch) leaks into bin 2.
+**Exclude bin 2 from noise calculation:**
+
+```matlab
+% Noise calculation excludes DC (bin 1) and low-freq leakage (bin 2)
+fB_bins = ceil(N / (2*OSR));
+noise_bins = setdiff(3:fB_bins, [sig_bins, harmonic_bins]);  % Start from bin 3
+```
+
+### SNR vs SNDR
+
+- **SNR:** Signal / (Noise only). Excludes harmonic distortion.
+  - Noise bins: Everything in-band except DC, signal, harmonics, and bin 2
+- **SNDR:** Signal / (Noise + Distortion). Includes harmonics.
+  - Noise bins: Everything in-band except DC, signal, and bin 2
+
 ## Troubleshooting
 
 ### "synthesizeNTF not found"
@@ -520,6 +538,57 @@ DNL (max): 0.08 LSB
 **Available Functions:**
 - `thermometer_dac_mismatch.m` - DAC with unit cell mismatch
 - `thermometer_dac_mismatch_demo.m` - Demonstration of mismatch effects with INL/DNL analysis
+
+### Dynamic Weighted Averaging (DWA)
+
+DWA is a mismatch-shaping technique that rotates which unit cells are selected for a given thermometer code, averaging out mismatch errors over time.
+
+**Algorithm:**
+- For each sample with `k` ones in the thermometer code:
+  1. Select `k` consecutive cells starting from the current position
+  2. Wrap around if needed (circular buffer)
+  3. Next start position = position after last selected cell
+
+**Example with 7 cells (3-bit), code = 3:**
+```
+Sample 1: cells 1,2,3 activated → next start = 4
+Sample 2: cells 4,5,6 activated → next start = 7
+Sample 3: cells 7,1,2 activated (wrap) → next start = 3
+Sample 4: cells 3,4,5 activated → next start = 6
+```
+
+```matlab
+%% DWA DAC with Mismatch
+[v_out, start_idx] = thermometer_dac_dwa(thermometer, v_fs, n_bits, bit_weights, start_idx);
+```
+
+**Benefits:**
+- Equalizes cell usage across all unit cells
+- Shapes mismatch noise out of signal band
+- Pushes distortion to higher frequencies (attenuated by NTF)
+- Typical improvement: 10-20 dB in SNDR with 0.5-2% mismatch
+
+**Implementation in DSM:**
+See `design_4th_order_ciff_with_dac_mismatch.m` for complete example comparing:
+- Ideal DAC (no mismatch)
+- Static DAC with mismatch
+- DWA DAC with same mismatch
+
+**Key Implementation Detail:**
+The DWA DAC creates a **rotated** thermometer pattern for feedback, while the ADC output uses the original pattern:
+```matlab
+% ADC output uses original thermometer
+them = flash_adc_quantizer(y, V_fs, n_bits);
+v_adc(i) = binary_output;
+
+% DAC feedback uses rotated pattern
+dwa_therm = rotate_thermometer(therm, dwa_start_idx);
+v_dac(i) = calculate_dac_output(dwa_therm, bit_weights);
+```
+
+**Available Functions:**
+- `thermometer_dac_dwa.m` - DWA DAC implementation
+- `thermometer_dac_dwa_demo.m` - Standalone DWA demo with SNDR comparison
 
 ## References
 
