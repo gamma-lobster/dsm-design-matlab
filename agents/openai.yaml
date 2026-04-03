@@ -1,0 +1,4 @@
+interface:
+  display_name: "DSM Design (MATLAB)"
+  short_description: "Design delta-sigma modulators in MATLAB"
+  default_prompt: "Use $dsm-design-matlab to design or troubleshoot a delta-sigma modulator in MATLAB."
