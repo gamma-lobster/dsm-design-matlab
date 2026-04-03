@@ -13,6 +13,7 @@ references/
 │   ├── simulateDSM.m
 │   └── ... (113 more)
 │
+├── design_3rd_order_ciff_10mhz.m # 3rd-order, 4-bit, OSR=32, fs=10MHz example
 ├── design_4th_order_ciff.m    # Full 4th-order CIFF example
 ├── dsm_4th_order_simple.m     # Simplified headless version
 ├── dsm_quick_design.m         # Quick-start template
