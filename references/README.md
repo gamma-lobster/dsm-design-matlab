@@ -49,6 +49,22 @@ run('design_4th_order_ciff.m')
 | ENOB | 16.94 bits |
 | Status | Stable |
 
+## Verified 3rd-Order Baseline
+
+The 3rd-order 10 MHz example and its generated Simulink model were rerun successfully on April 12, 2026.
+
+| Flow | SNR | ENOB | Notes |
+|------|-----|------|-------|
+| `design_3rd_order_ciff_10mhz.m` | 109.27 dB | 17.86 bits | Peak sweep SNR 112.44 dB at 0.85 V |
+| `run_3rd_order_simulink_model.m` | 109.21 dB | 17.85 bits | Simulink output matches MATLAB within about 0.06 dB |
+
+Fresh outputs from that verification:
+
+- `dsm_3rd_order_4bit_osr32_results.mat`
+- `dsm_3rd_order_4bit_osr32_plots.png`
+- `dsm_3rd_order_ciff_10mhz_simulink_results.mat`
+- `dsm_3rd_order_ciff_10mhz_simulink_plots.png`
+
 ## Notes
 
 - `dstoolbox/` contains Richard Schreier's Delta Sigma Toolbox

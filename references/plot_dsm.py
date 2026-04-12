@@ -7,6 +7,9 @@ import matplotlib
 matplotlib.use('Agg')  # Headless
 import matplotlib.pyplot as plt
 
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+OUTPUT_PNG = os.path.join(SCRIPT_DIR, 'dsm_plots.png')
+
 def load_mat_simple(filepath):
     """Simple MAT-file v7.3 loader for basic arrays"""
     with open(filepath, 'rb') as f:
@@ -211,8 +214,8 @@ ax4.grid(True, alpha=0.3, which='both')
 ax4.legend()
 
 plt.tight_layout()
-plt.savefig('/home/osboxes/.openclaw/workspace/skills/dsm-design-matlab/references/dsm_plots.png', dpi=150, bbox_inches='tight')
-print('Saved: dsm_plots.png')
+plt.savefig(OUTPUT_PNG, dpi=150, bbox_inches='tight')
+print(f'Saved: {OUTPUT_PNG}')
 
 print(f'\n=== Summary ===')
 print(f'Order: 4')

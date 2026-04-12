@@ -3,8 +3,12 @@
 
 import os
 
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+PLOTS_DIR = os.path.join(SCRIPT_DIR, 'plots')
+OUTPUT_HTML = os.path.join(SCRIPT_DIR, 'dsm_plots.html')
+
 # Create output directory
-os.makedirs('/home/osboxes/.openclaw/workspace/skills/dsm-design-matlab/references/plots', exist_ok=True)
+os.makedirs(PLOTS_DIR, exist_ok=True)
 
 # Simulation parameters
 fs = 2e6
@@ -233,8 +237,8 @@ html_content = """<!DOCTYPE html>
 """
 
 # Write HTML file
-with open('/home/osboxes/.openclaw/workspace/skills/dsm-design-matlab/references/dsm_plots.html', 'w') as f:
+with open(OUTPUT_HTML, 'w') as f:
     f.write(html_content)
 
-print("Created: /home/osboxes/.openclaw/workspace/skills/dsm-design-matlab/references/dsm_plots.html")
+print(f"Created: {OUTPUT_HTML}")
 print("\nOpen this file in a web browser to view the plots.")
