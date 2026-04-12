@@ -66,7 +66,7 @@ For CTDSM work:
 8. For compensated ELD cases, let `realizeNTF_ct(...)` synthesize the needed direct or compensation path from the delayed `tdac`.
 9. For DAC clock jitter on a delayed NRZ-like CT feedback pulse, start with `jitter_mode='edge'` to perturb the DAC update edge directly in Simulink.
 10. If you want a sampled textbook-style DAC jitter model, use `jitter_mode='equivalent'`, which injects an error term proportional to `v[n] - v[n-1]`.
-11. Use `references/calculate_ct_dac_jitter_sjnr.m` for the current standalone equation-style `J` and `SJNR` calculation.
+11. Use `references/calculate_ct_dac_jitter_sjnr.m` for the current standalone equation-style `J` and `SJNR` calculation, including the `2*pi` conversion from the numerically evaluated `f`-domain integral to the `w`-domain form of Eq. 9.17.
 12. Measure SNR from the sampled quantizer output, and inspect inter-sample waveforms separately.
 
 ## Parameter Heuristics

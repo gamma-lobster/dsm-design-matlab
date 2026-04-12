@@ -1,6 +1,8 @@
 %% run_3rd_order_ct_dac_jitter_theory_compare.m
 % Compare waveform-level and theory-faithful DAC jitter models against an
-% Eq. 9.17-style SJNR estimate based on the full-band f-domain integral.
+% Eq. 9.17-style SJNR estimate. The NTF integral is evaluated numerically
+% in normalized frequency f and then converted to the w-domain form used by
+% the textbook equation via dw = 2*pi*df.
 
 clearvars; close all; clc;
 
@@ -108,9 +110,10 @@ fB = fs / (2 * OSR);
 f_int = linspace(0, 0.5, 200000);
 z_int = exp(1j * 2*pi * f_int);
 H_int = evalTF(ntf, z_int);
-int_term = trapz(f_int, abs((1 - z_int.^(-1)) .* H_int).^2);
+int_term_f = trapz(f_int, abs((1 - z_int.^(-1)) .* H_int).^2);
+int_term_w = 2*pi * int_term_f;
 delta = 2 * V_fs / (n_levels - 1);
-J_theory = (jitter_rms^2 / Ts^2) * (1 / OSR) * (1 / (3*pi)) * int_term * (delta/2)^2;
+J_theory = (jitter_rms^2 / Ts^2) * (1 / OSR) * (1 / (3*pi)) * int_term_w * (delta/2)^2;
 P_sig = A_in^2 / 2;
 SJNR_theory = 10 * log10(P_sig / J_theory);
 
@@ -162,7 +165,8 @@ summary_lines = {
     sprintf('Theory SJNR     = %.2f dB', SJNR_theory)
     sprintf('Theory J        = %.6g', J_theory)
     sprintf('Signal power    = %.6g', P_sig)
-    sprintf('Integral term   = %.6f', int_term)
+    sprintf('Integral f-term = %.6f', int_term_f)
+    sprintf('Integral w-term = %.6f', int_term_w)
     };
 text(0.05, 0.95, strjoin(summary_lines, '\n'), 'FontSize', 11, 'VerticalAlignment', 'top');
 axis off;
@@ -173,7 +177,7 @@ saveas(fig, plot_path);
 
 results_path = fullfile(script_dir, 'dsm_3rd_order_ct_dac_jitter_theory_compare.mat');
 save(results_path, 'cases', 'plot_path', 'jitter_rms', 'tdac', 'ABCDc', ...
-    'fs', 'OSR', 'N', 'A_in', 'J_theory', 'SJNR_theory', 'P_sig', 'int_term', 'delta');
+    'fs', 'OSR', 'N', 'A_in', 'J_theory', 'SJNR_theory', 'P_sig', 'int_term_f', 'int_term_w', 'delta');
 
 fprintf('Theory J = %.9g\n', J_theory);
 fprintf('Theory SJNR = %.4f dB\n', SJNR_theory);

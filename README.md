@@ -76,7 +76,7 @@ Measured baseline:
 - Continuous-time Simulink with `Ts/2` ELD, compensated: `SNR = 107.22 dB`, `ENOB = 17.52 bits`
 - Continuous-time Simulink with `Ts/2` ELD and `500 ps` DAC edge jitter: `SNR = 66.02 dB`
 - Continuous-time Simulink with `Ts/2` ELD and `500 ps` equivalent DAC jitter: `SNR = 66.73 dB`
-- Equation-style CT DAC jitter estimate for the same `500 ps` case: `J = 4.75e-9`, `SJNR = 74.20 dB`
+- Equation-style CT DAC jitter estimate for the same `500 ps` case: `J = 2.98e-8`, `SJNR = 66.22 dB`
 - Simulink: `SNR = 109.21 dB`, `ENOB = 17.85 bits`
 
 The direct MATLAB and Simulink paths agree within about `0.06 dB`, which is a strong indication that the current 3rd-order design path is intact.
@@ -90,7 +90,7 @@ The CT builder also supports two DAC clock-jitter modes for full-width NRZ-like 
 - `jitter_mode='edge'`: perturbs the DAC update edge in continuous time
 - `jitter_mode='equivalent'`: injects the textbook-style sampled jitter error term derived from `v[n] - v[n-1]`
 
-For the current 3rd-order compensated CTDSM, both jitter modes produce similar SNR at `500 ps` RMS, which suggests the large mismatch from early hand calculations came mainly from equation normalization and measurement setup rather than the absence of a sampled jitter model. When doing coherent tone measurements, remember MATLAB FFT arrays are 1-based: a tone at DFT bin `k` appears at array index `k+1`.
+For the current 3rd-order compensated CTDSM, both jitter modes produce similar SNR at `500 ps` RMS, and the equation-style estimate is now close as well once the NTF integral is converted from the numerically evaluated `f` domain to the `w` domain used by Eq. 9.17 via a `2*pi` factor. When doing coherent tone measurements, remember MATLAB FFT arrays are 1-based: a tone at DFT bin `k` appears at array index `k+1`.
 
 ## Good Resume Points
 

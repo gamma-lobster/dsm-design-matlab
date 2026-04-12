@@ -9,10 +9,13 @@
 %   - z = exp(j*2*pi*f)
 %
 % This script evaluates the integral over the full normalized band
-% 0 <= f <= 1/2, then applies the Eq. 9.17-style scaling used in this
-% project:
+% 0 <= f <= 1/2. Eq. 9.17 is interpreted in angular frequency w, so the
+% script converts the numerically evaluated f-domain integral with
+% dw = 2*pi*df:
 %
-%   J = (sigma_t^2/T^2) * (1/OSR) * (1/(3*pi)) * int_term * (Delta/2)^2
+%   int_term_w = 2*pi * int_term_f
+%
+%   J = (sigma_t^2/T^2) * (1/OSR) * (1/(3*pi)) * int_term_w * (Delta/2)^2
 %
 %   SJNR = 10*log10(P_sig/J)
 %
@@ -61,8 +64,11 @@ Delta = 2 * V_fs / (n_levels - 1);
 % Input sine-wave power for amplitude A_in.
 P_sig = A_in^2 / 2;
 
+% Convert the numerical f-domain integral to the w-domain form used by Eq. 9.17.
+int_term_w = 2*pi * int_term;
+
 % Eq. 9.17-style jitter noise power and corresponding jitter-limited SJNR.
-J = (sigma_t^2 / T^2) * (1 / OSR) * (1 / (3*pi)) * int_term * (Delta / 2)^2;
+J = (sigma_t^2 / T^2) * (1 / OSR) * (1 / (3*pi)) * int_term_w * (Delta / 2)^2;
 SJNR = 10 * log10(P_sig / J);
 
 fprintf('CTDSM DAC jitter calculation\n');
@@ -76,7 +82,8 @@ fprintf('  V_fs       = %.6g\n', V_fs);
 fprintf('  A_in       = %.6g\n', A_in);
 fprintf('  grid pts   = %d\n', n_grid);
 fprintf('  band       = [0, 0.5] cycles/sample\n');
-fprintf('  int_term   = %.12e\n', int_term);
+fprintf('  int_term_f = %.12e\n', int_term);
+fprintf('  int_term_w = %.12e\n', int_term_w);
 fprintf('  Delta      = %.12e\n', Delta);
 fprintf('  P_sig      = %.12e\n', P_sig);
 fprintf('  J          = %.12e\n', J);
@@ -100,7 +107,8 @@ results.f = f;
 results.z = z;
 results.H = H;
 results.integrand = integrand;
-results.int_term = int_term;
+results.int_term_f = int_term;
+results.int_term_w = int_term_w;
 results.Delta = Delta;
 results.P_sig = P_sig;
 results.J = J;
