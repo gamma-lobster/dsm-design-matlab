@@ -23,12 +23,13 @@
 function [model_name, model_path, info] = build_ct_dsm_simulink_model(varargin)
     spec = parse_inputs(varargin{:});
 
+    addpath(fullfile(fileparts(fileparts(fileparts(mfilename('fullpath')))), 'common'));
+    setup_references_paths();
+
     if isempty(spec.fs)
         error('build_ct_dsm_simulink_model:MissingFs', ...
             'Sampling frequency fs must be provided.');
     end
-
-    addpath(fullfile(fileparts(mfilename('fullpath')), 'dstoolbox'));
 
     if isempty(spec.n_levels)
         if ~isempty(spec.n_bits)

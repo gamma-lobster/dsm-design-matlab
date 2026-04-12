@@ -11,7 +11,10 @@
 clear all; close all; clc;
 
 %% Add Delta Sigma Toolbox to path (relative to this script)
-addpath(fullfile(fileparts(mfilename('fullpath')), 'dstoolbox'));
+script_dir = fileparts(mfilename('fullpath'));
+addpath(fullfile(fileparts(fileparts(script_dir)), 'common'));
+refs_root = setup_references_paths();
+results_dir = fullfile(refs_root, 'results', 'dt');
 
 fprintf('============================================================\n');
 fprintf('  4th-Order CIFF DSM Design - Native MATLAB Workflow\n');
@@ -290,7 +293,7 @@ end
 axis off;
 
 % Save plot
-saveas(gcf, 'dsm_4th_order_ciff.png');
+saveas(gcf, fullfile(results_dir, 'dsm_4th_order_ciff.png'));
 fprintf('  Saved: dsm_4th_order_ciff.png\n\n');
 
 %% Step 8: NTF/STF Plots
@@ -380,7 +383,7 @@ grid on;
 axis([100/1000 fs/2000 -10 15]);
 
 % Save plot
-saveas(gcf, 'dsm_4th_order_ntf_stf.png');
+saveas(gcf, fullfile(results_dir, 'dsm_4th_order_ntf_stf.png'));
 fprintf('  Saved: dsm_4th_order_ntf_stf.png\n\n');
 
 %% Summary

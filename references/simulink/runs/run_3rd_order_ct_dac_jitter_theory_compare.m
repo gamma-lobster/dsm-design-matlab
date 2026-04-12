@@ -7,7 +7,9 @@
 clearvars; close all; clc;
 
 script_dir = fileparts(mfilename('fullpath'));
-addpath(fullfile(script_dir, 'dstoolbox'));
+addpath(fullfile(fileparts(fileparts(script_dir)), 'common'));
+refs_root = setup_references_paths();
+results_dir = fullfile(refs_root, 'results', 'ct', 'jitter');
 
 order = 3;
 OSR = 32;
@@ -44,7 +46,7 @@ for k = 1:numel(cases)
     model_name = sprintf('dsm_3rd_order_ct_jitter_%s_500ps_model', lower(strrep(cases(k).jitter_mode, ' ', '_')));
     [built_name, model_path, info] = build_ct_dsm_simulink_model( ...
         'model_name', model_name, ...
-        'output_dir', script_dir, ...
+        'output_dir', results_dir, ...
         'ABCDc', ABCDc, ...
         'ct_form', ct_form, ...
         'tdac', tdac, ...
@@ -172,10 +174,10 @@ text(0.05, 0.95, strjoin(summary_lines, '\n'), 'FontSize', 11, 'VerticalAlignmen
 axis off;
 title('Summary');
 
-plot_path = fullfile(script_dir, 'dsm_3rd_order_ct_dac_jitter_theory_compare.png');
+plot_path = fullfile(results_dir, 'dsm_3rd_order_ct_dac_jitter_theory_compare.png');
 saveas(fig, plot_path);
 
-results_path = fullfile(script_dir, 'dsm_3rd_order_ct_dac_jitter_theory_compare.mat');
+results_path = fullfile(results_dir, 'dsm_3rd_order_ct_dac_jitter_theory_compare.mat');
 save(results_path, 'cases', 'plot_path', 'jitter_rms', 'tdac', 'ABCDc', ...
     'fs', 'OSR', 'N', 'A_in', 'J_theory', 'SJNR_theory', 'P_sig', 'int_term_f', 'int_term_w', 'delta');
 

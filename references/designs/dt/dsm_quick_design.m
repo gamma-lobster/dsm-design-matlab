@@ -7,7 +7,9 @@
 clear all; close all; clc;
 
 %% Add Delta Sigma Toolbox to path (relative to this script)
-addpath(fullfile(fileparts(mfilename('fullpath')), 'dstoolbox'));
+script_dir = fileparts(mfilename('fullpath'));
+addpath(fullfile(fileparts(fileparts(script_dir)), 'common'));
+setup_references_paths();
 
 %% ============== EDIT THESE PARAMETERS ==============
 

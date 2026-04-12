@@ -22,6 +22,9 @@
 function [model_name, model_path, info] = build_dsm_simulink_model(varargin)
     spec = parse_inputs(varargin{:});
 
+    addpath(fullfile(fileparts(fileparts(fileparts(mfilename('fullpath')))), 'common'));
+    setup_references_paths();
+
     if isempty(spec.fs)
         error('build_dsm_simulink_model:MissingFs', ...
             'Sampling frequency fs must be provided.');
@@ -31,8 +34,6 @@ function [model_name, model_path, info] = build_dsm_simulink_model(varargin)
         error('build_dsm_simulink_model:MissingForm', ...
             'A realization form such as CIFF or CIFB must be provided.');
     end
-
-    addpath(fullfile(fileparts(mfilename('fullpath')), 'dstoolbox'));
 
     if isempty(spec.n_levels)
         if ~isempty(spec.n_bits)

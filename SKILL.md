@@ -66,7 +66,7 @@ For CTDSM work:
 8. For compensated ELD cases, let `realizeNTF_ct(...)` synthesize the needed direct or compensation path from the delayed `tdac`.
 9. For DAC clock jitter on a delayed NRZ-like CT feedback pulse, start with `jitter_mode='edge'` to perturb the DAC update edge directly in Simulink.
 10. If you want a sampled textbook-style DAC jitter model, use `jitter_mode='equivalent'`, which injects an error term proportional to `v[n] - v[n-1]`.
-11. Use `references/calculate_ct_dac_jitter_sjnr.m` for the current standalone equation-style `J` and `SJNR` calculation, including the `2*pi` conversion from the numerically evaluated `f`-domain integral to the `w`-domain form of Eq. 9.17.
+11. Use `references/analysis/jitter/calculate_ct_dac_jitter_sjnr.m` for the current standalone equation-style `J` and `SJNR` calculation, including the `2*pi` conversion from the numerically evaluated `f`-domain integral to the `w`-domain form of Eq. 9.17.
 12. Measure SNR from the sampled quantizer output, and inspect inter-sample waveforms separately.
 
 ## Parameter Heuristics
@@ -159,25 +159,25 @@ When debugging, report:
 
 Open only the reference files needed for the current task.
 
-- `references/dsm_quick_design.m`: best starting point for a new lowpass DSM design.
-- `references/design_3rd_order_ct_dsm_10mhz.m`: best starting point for the current continuous-time 3rd-order reference flow.
-- `references/design_4th_order_ciff.m`: complete worked example with reporting and plots.
-- `references/dsm_4th_order_simple.m`: headless or simplified variant.
-- `references/build_dsm_simulink_model.m`: use when the user wants a Simulink model assembled from the design.
-- `references/build_ct_dsm_simulink_model.m`: use when the user wants a generic CTDSM Simulink model with CT integrators and a sampled quantizer input.
-- `references/run_3rd_order_ct_simulink_model.m`: use when the user wants the CT Simulink model executed and plotted.
-- `references/run_3rd_order_ct_eld_simulink_model.m`: use when the user wants a verified uncompensated-versus-compensated ELD comparison in the CT Simulink model.
-- `references/run_3rd_order_ct_dac_jitter_simulink_model.m`: use when the user wants a DAC clock-jitter sweep in the CT Simulink model.
-- `references/run_3rd_order_ct_dac_jitter_theory_compare.m`: use when the user wants edge-jitter, equivalent-jitter, and equation-style SJNR compared side by side.
-- `references/calculate_ct_dac_jitter_sjnr.m`: use when the user wants the standalone `J` and `SJNR` calculation.
-- `references/debug_snr.m`: use when SNR calculations disagree with expectations.
-- `references/flash_adc_quantizer.m`: flash ADC with thermometer-code output.
-- `references/thermometer_dac.m`: ideal thermometer DAC reconstruction.
-- `references/thermometer_dac_mismatch.m`: static unit-cell mismatch model.
-- `references/thermometer_dac_dwa.m`: dynamic weighted averaging for mismatch shaping.
-- `references/design_4th_order_ciff_with_dac_mismatch.m`: end-to-end mismatch and DWA example.
+- `references/designs/dt/dsm_quick_design.m`: best starting point for a new lowpass DSM design.
+- `references/designs/ct/design_3rd_order_ct_dsm_10mhz.m`: best starting point for the current continuous-time 3rd-order reference flow.
+- `references/designs/dt/design_4th_order_ciff.m`: complete worked example with reporting and plots.
+- `references/designs/dt/dsm_4th_order_simple.m`: headless or simplified variant.
+- `references/simulink/builders/build_dsm_simulink_model.m`: use when the user wants a Simulink model assembled from the design.
+- `references/simulink/builders/build_ct_dsm_simulink_model.m`: use when the user wants a generic CTDSM Simulink model with CT integrators and a sampled quantizer input.
+- `references/simulink/runs/run_3rd_order_ct_simulink_model.m`: use when the user wants the CT Simulink model executed and plotted.
+- `references/simulink/runs/run_3rd_order_ct_eld_simulink_model.m`: use when the user wants a verified uncompensated-versus-compensated ELD comparison in the CT Simulink model.
+- `references/simulink/runs/run_3rd_order_ct_dac_jitter_simulink_model.m`: use when the user wants a DAC clock-jitter sweep in the CT Simulink model.
+- `references/simulink/runs/run_3rd_order_ct_dac_jitter_theory_compare.m`: use when the user wants edge-jitter, equivalent-jitter, and equation-style SJNR compared side by side.
+- `references/analysis/jitter/calculate_ct_dac_jitter_sjnr.m`: use when the user wants the standalone `J` and `SJNR` calculation.
+- `references/analysis/debug/debug_snr.m`: use when SNR calculations disagree with expectations.
+- `references/components/flash_adc_quantizer.m`: flash ADC with thermometer-code output.
+- `references/components/thermometer_dac.m`: ideal thermometer DAC reconstruction.
+- `references/components/thermometer_dac_mismatch.m`: static unit-cell mismatch model.
+- `references/components/thermometer_dac_dwa.m`: dynamic weighted averaging for mismatch shaping.
+- `references/designs/dt/design_4th_order_ciff_with_dac_mismatch.m`: end-to-end mismatch and DWA example.
 
-If the user asks about toolbox behavior, inspect the relevant source in `references/dstoolbox/` rather than guessing.
+If the user asks about toolbox behavior, inspect the relevant source in `references/third_party/dstoolbox/` rather than guessing.
 
 ## Component-Level Modeling
 

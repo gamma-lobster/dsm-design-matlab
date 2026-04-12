@@ -4,7 +4,8 @@
 clearvars; close all; clc;
 
 script_dir = fileparts(mfilename('fullpath'));
-addpath(fullfile(script_dir, 'dstoolbox'));
+addpath(fullfile(fileparts(fileparts(script_dir)), 'common'));
+refs_root = setup_references_paths();
 
 order = 3;
 OSR = 32;
@@ -22,7 +23,7 @@ ntf = synthesizeNTF(order, OSR, opt, H_inf, f0);
 
 [model_name, model_path, info] = build_ct_dsm_simulink_model( ...
     'model_name', 'dsm_3rd_order_ct_10mhz_topology_model', ...
-    'output_dir', script_dir, ...
+    'output_dir', fullfile(refs_root, 'results', 'simulink', 'ct'), ...
     'ntf', ntf, ...
     'ct_form', ct_form, ...
     'tdac', tdac, ...
@@ -41,6 +42,7 @@ fprintf('CT form: %s\n', info.ct_form);
 fprintf('tdac2:\n');
 disp(info.tdac2);
 
+load_system(model_path);
 simOut = sim(model_name, 'StopTime', num2str(stop_time, 16));
 
 u = extract_signal(simOut, 'u_dsm');
@@ -53,6 +55,8 @@ fprintf('  u:    %d\n', numel(u));
 fprintf('  y_ct: %d\n', numel(y_ct));
 fprintf('  y:    %d\n', numel(y));
 fprintf('  v:    %d\n', numel(v));
+
+close_system(model_name, 0);
 
 function sig = extract_signal(simOut, name)
 if isprop(simOut, name)

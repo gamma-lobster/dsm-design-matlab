@@ -29,7 +29,9 @@
 clearvars; clc;
 
 script_dir = fileparts(mfilename('fullpath'));
-addpath(fullfile(script_dir, 'dstoolbox'));
+addpath(fullfile(fileparts(fileparts(script_dir)), 'common'));
+refs_root = setup_references_paths();
+results_dir = fullfile(refs_root, 'results', 'ct', 'jitter');
 
 order = 3;
 OSR = 32;
@@ -114,4 +116,4 @@ results.P_sig = P_sig;
 results.J = J;
 results.SJNR = SJNR;
 
-save(fullfile(script_dir, 'ct_dac_jitter_sjnr_results.mat'), 'results');
+save(fullfile(results_dir, 'ct_dac_jitter_sjnr_results.mat'), 'results');

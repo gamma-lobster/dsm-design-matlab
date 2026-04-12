@@ -5,7 +5,9 @@
 clearvars; close all; clc;
 
 script_dir = fileparts(mfilename('fullpath'));
-addpath(fullfile(script_dir, 'dstoolbox'));
+addpath(fullfile(fileparts(fileparts(script_dir)), 'common'));
+refs_root = setup_references_paths();
+results_dir = fullfile(refs_root, 'results', 'ct', 'jitter');
 
 order = 3;
 OSR = 32;
@@ -36,7 +38,7 @@ ntf = synthesizeNTF(order, OSR, opt, H_inf, f0);
 model_name = 'ct_dac_jitter_error_analysis_model';
 [built_name, model_path, info] = build_ct_dsm_simulink_model( ...
     'model_name', model_name, ...
-    'output_dir', script_dir, ...
+    'output_dir', results_dir, ...
     'ABCDc', ABCDc, ...
     'ct_form', ct_form, ...
     'tdac', tdac, ...
@@ -137,10 +139,10 @@ text(0.05, 0.95, strjoin(summary_lines, '\n'), 'FontSize', 11, 'VerticalAlignmen
 axis off;
 title('Summary');
 
-plot_path = fullfile(script_dir, 'ct_dac_jitter_error_spectrum.png');
+plot_path = fullfile(results_dir, 'ct_dac_jitter_error_spectrum.png');
 saveas(fig, plot_path);
 
-results_path = fullfile(script_dir, 'ct_dac_jitter_error_spectrum.mat');
+results_path = fullfile(results_dir, 'ct_dac_jitter_error_spectrum.mat');
 save(results_path, 'e_jit', 'dv', 'dt_over_T', 'e_ss', 'dv_ss', 'dt_ss', ...
     't_e', 't_dv', 't_dt', 't_ss', 'E_mag', 'freqs_hz', 'plot_path', ...
     'jitter_rms', 'jitter_seed', 'f_in', 'slope_db_per_dec', 'info');

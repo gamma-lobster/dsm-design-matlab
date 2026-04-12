@@ -5,7 +5,10 @@
 clear all; clc;
 
 %% Add Delta Sigma Toolbox to path (relative to this script)
-addpath(fullfile(fileparts(mfilename('fullpath')), 'dstoolbox'));
+script_dir = fileparts(mfilename('fullpath'));
+addpath(fullfile(fileparts(fileparts(script_dir)), 'common'));
+refs_root = setup_references_paths();
+results_dir = fullfile(refs_root, 'results', 'dt');
 
 fprintf('4th-Order CIFF DSM Simulation\n');
 fprintf('=============================\n\n');
@@ -100,7 +103,7 @@ fprintf('  Status: %s\n', status_str);
 
 %% Save data
 freqs = (0:N/2)/N*fs;
-save('dsm_4th_order_results.mat', 'a', 'g', 'b', 'c', 'ABCD', 'SNR', 'ENOB', ...
+save(fullfile(results_dir, 'dsm_4th_order_results.mat'), 'a', 'g', 'b', 'c', 'ABCD', 'SNR', 'ENOB', ...
      'V_out_mag', 'freqs', 'u', 'v', 'x_max');
 fprintf('\nSaved: dsm_4th_order_results.mat\n');
 

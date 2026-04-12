@@ -8,7 +8,10 @@
 clear all; close all; clc;
 
 %% Add Delta Sigma Toolbox to path (relative to this script)
-addpath(fullfile(fileparts(mfilename('fullpath')), 'dstoolbox'));
+script_dir = fileparts(mfilename('fullpath'));
+addpath(fullfile(fileparts(fileparts(script_dir)), 'common'));
+refs_root = setup_references_paths();
+results_dir = fullfile(refs_root, 'results', 'dt');
 
 fprintf('============================================================\n');
 fprintf('  3rd-Order CIFF DSM Design - Native MATLAB Workflow\n');
@@ -248,11 +251,11 @@ legend('Sweep', sprintf('Peak: %.2f V, %.1f dB', peak_amp, peak_snr), ...
     'Location', 'best');
 grid on;
 
-saveas(fig1, 'dsm_3rd_order_4bit_osr32_plots.png');
+saveas(fig1, fullfile(results_dir, 'dsm_3rd_order_4bit_osr32_plots.png'));
 fprintf('Saved: dsm_3rd_order_4bit_osr32_plots.png\n');
 
 %% Step 9: Save Data
-save('dsm_3rd_order_4bit_osr32_results.mat', 'a', 'g', 'b', 'c', 'ABCD', ...
+save(fullfile(results_dir, 'dsm_3rd_order_4bit_osr32_results.mat'), 'a', 'g', 'b', 'c', 'ABCD', ...
      'SNR', 'ENOB', 'V_out_mag', 'freqs', 'u', 'v', 'x_max', ...
      'order', 'OSR', 'H_inf', 'opt', 'form', 'fs', 'n_bits', 'A_in', ...
      'A_sweep', 'SNR_sweep', 'ENOB_sweep', 'state_peak_sweep', ...

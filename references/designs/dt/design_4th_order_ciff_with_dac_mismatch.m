@@ -8,7 +8,10 @@
 clear all; close all; clc;
 
 %% Add paths
-addpath(fullfile(fileparts(mfilename('fullpath')), 'dstoolbox'));
+script_dir = fileparts(mfilename('fullpath'));
+addpath(fullfile(fileparts(fileparts(script_dir)), 'common'));
+refs_root = setup_references_paths();
+results_dir = fullfile(refs_root, 'results', 'dt');
 
 fprintf('============================================================\n');
 fprintf('  4th-Order CIFF DSM with Flash ADC + Thermometer DAC\n');
@@ -684,6 +687,6 @@ function generate_4quadrant_plots(ntf, u, v_ideal_adc, v_mismatch_adc, v_dwa_adc
     xlim([min(amp_dB) max(amp_dB)]);
     
     % Save
-    saveas(gcf, 'dsm_4th_order_4quadrant.png');
+    saveas(gcf, fullfile(results_dir, 'dsm_4th_order_4quadrant.png'));
     fprintf('  Saved: dsm_4th_order_4quadrant.png\n');
 end

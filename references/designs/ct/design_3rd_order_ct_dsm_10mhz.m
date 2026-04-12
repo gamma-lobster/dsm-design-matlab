@@ -11,7 +11,9 @@ clearvars; close all; clc;
 
 %% Add Delta Sigma Toolbox to path (relative to this script)
 script_dir = fileparts(mfilename('fullpath'));
-addpath(fullfile(script_dir, 'dstoolbox'));
+addpath(fullfile(fileparts(fileparts(script_dir)), 'common'));
+refs_root = setup_references_paths();
+results_dir = fullfile(refs_root, 'results', 'ct', 'base');
 
 fprintf('============================================================\n');
 fprintf('  3rd-Order Continuous-Time DSM Design - Native MATLAB\n');
@@ -205,12 +207,12 @@ legend('Sweep', sprintf('Peak: %.2f V, %.1f dB', peak_amp, peak_snr), ...
     'Location', 'best');
 grid on;
 
-plot_path = fullfile(script_dir, 'dsm_3rd_order_ct_10mhz_plots.png');
+plot_path = fullfile(results_dir, 'dsm_3rd_order_ct_10mhz_plots.png');
 saveas(fig1, plot_path);
 fprintf('Saved: %s\n', plot_path);
 
 %% Step 9: Save data
-results_path = fullfile(script_dir, 'dsm_3rd_order_ct_10mhz_results.mat');
+results_path = fullfile(results_dir, 'dsm_3rd_order_ct_10mhz_results.mat');
 save(results_path, 'order', 'OSR', 'H_inf', 'opt', 'f0', 'fs', 'fB', ...
     'n_bits', 'n_levels', 'A_in', 'A_sweep', 'SNR', 'ENOB', ...
     'SNR_sweep', 'ENOB_sweep', 'state_peak_sweep', 'peak_amp', ...

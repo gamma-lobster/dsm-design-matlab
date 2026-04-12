@@ -1,10 +1,13 @@
-%% run_3rd_order_ct_dac_jitter_simulink_model.m
-% Sweep DAC clock jitter for the 3rd-order CTDSM with compensated half-cycle delay.
+%% run_3rd_order_ct_eld_simulink_model.m
+% Compare uncompensated and compensated Ts/2 excess-loop-delay cases
+% for the 3rd-order CTDSM Simulink model.
 
 clearvars; close all; clc;
 
 script_dir = fileparts(mfilename('fullpath'));
-addpath(fullfile(script_dir, 'dstoolbox'));
+addpath(fullfile(fileparts(fileparts(script_dir)), 'common'));
+refs_root = setup_references_paths();
+results_dir = fullfile(refs_root, 'results', 'ct', 'eld');
 
 order = 3;
 OSR = 32;
@@ -12,7 +15,8 @@ H_inf = 4.0;
 opt = 1;
 f0 = 0;
 ct_form = 'FF';
-tdac = [0.5 1.5];
+tdac_nom = [0 1];
+tdac_eld = [0.5 1.5];
 fs = 10e6;
 n_bits = 4;
 V_fs = 1.0;
@@ -20,26 +24,33 @@ A_in = 0.5;
 N = 8192;
 stop_time = (N - 1) / fs;
 
-% RMS DAC clock jitter values in seconds.
-% For the 10 MHz clock used here (Ts = 100 ns), sub-ns jitter is a more
-% meaningful sweep than deep-ps values with the current fixed-step model.
-jitter_rms_values = [0, 0.5e-9, 1e-9, 2e-9, 5e-9];
-
 ntf = synthesizeNTF(order, OSR, opt, H_inf, f0);
-[ABCDc, tdac2] = realizeNTF_ct(ntf, ct_form, tdac); %#ok<ASGLU>
+[ABCDc_nom, tdac2_nom] = realizeNTF_ct(ntf, ct_form, tdac_nom); %#ok<ASGLU>
+[ABCDc_comp, tdac2_comp] = realizeNTF_ct(ntf, ct_form, tdac_eld); %#ok<ASGLU>
+
+cases = { ...
+    struct( ...
+        'label', 'Uncompensated ELD', ...
+        'model_name', 'dsm_3rd_order_ct_eld_uncomp_topology_model', ...
+        'ABCDc', ABCDc_nom, ...
+        'tdac', tdac_eld), ...
+    struct( ...
+        'label', 'Compensated ELD', ...
+        'model_name', 'dsm_3rd_order_ct_eld_comp_topology_model', ...
+        'ABCDc', ABCDc_comp, ...
+        'tdac', tdac_eld) ...
+    };
 
 results = struct([]);
 
-for k = 1:numel(jitter_rms_values)
-    jitter_rms = jitter_rms_values(k);
-    model_name = sprintf('dsm_3rd_order_ct_jitter_%dps_topology_model', round(jitter_rms*1e12));
-
-    [built_name, model_path, info] = build_ct_dsm_simulink_model( ...
-        'model_name', model_name, ...
-        'output_dir', script_dir, ...
-        'ABCDc', ABCDc, ...
+for k = 1:numel(cases)
+    cfg = cases{k};
+    [model_name, model_path, info] = build_ct_dsm_simulink_model( ...
+        'model_name', cfg.model_name, ...
+        'output_dir', results_dir, ...
+        'ABCDc', cfg.ABCDc, ...
         'ct_form', ct_form, ...
-        'tdac', tdac, ...
+        'tdac', cfg.tdac, ...
         'fs', fs, ...
         'OSR', OSR, ...
         'n_bits', n_bits, ...
@@ -47,12 +58,10 @@ for k = 1:numel(jitter_rms_values)
         'input_amplitude', A_in, ...
         'stop_time', stop_time, ...
         'ct_steps_per_sample', 32, ...
-        'jitter_rms', jitter_rms, ...
-        'jitter_seed', 12345, ...
         'open_model', false);
 
-    fprintf('Running jitter case %.0f ps rms: %s\n', jitter_rms*1e12, built_name);
-    simOut = sim(built_name, 'StopTime', num2str(stop_time, 16));
+    fprintf('Running %s: %s\n', cfg.label, model_name);
+    simOut = sim(model_name, 'StopTime', num2str(stop_time, 16));
 
     [u_ct, t_u] = extract_signal_with_time(simOut, 'u_dsm');
     [y_ct, ~] = extract_signal_with_time(simOut, 'y_ct_dsm');
@@ -77,9 +86,8 @@ for k = 1:numel(jitter_rms_values)
     [SNR, ENOB, V_out_mag, sig_bin, signal_power, noise_power] = ...
         calculate_snr_metrics(v, n_avail, OSR);
 
-    results(k).jitter_rms = jitter_rms; %#ok<SAGROW>
-    results(k).label = sprintf('%.0f ps', jitter_rms*1e12);
-    results(k).model_name = built_name;
+    results(k).label = cfg.label; %#ok<SAGROW>
+    results(k).model_name = model_name;
     results(k).model_path = model_path;
     results(k).info = info;
     results(k).u = u;
@@ -101,67 +109,90 @@ f_min = max(fs / N, 1e3);
 log_idx = freqs_hz >= f_min;
 freqs_log_khz = freqs_hz(log_idx) / 1000;
 
-fig1 = figure('Name', '3rd-Order CTDSM DAC Jitter Sweep');
+sys_c_nom = ss(ABCDc_nom(1:order, 1:order), ABCDc_nom(1:order, order+1:end), ...
+    ABCDc_nom(order+1, 1:order), ABCDc_nom(order+1, order+1:end));
+sys_d_nom = mapCtoD(sys_c_nom, [-1 -1; tdac_eld]);
+[ntf_uncomp, ~] = calculateTF([sys_d_nom.a sys_d_nom.b; sys_d_nom.c sys_d_nom.d]);
+ntf_uncomp = cancelPZ(ntf_uncomp);
+
+sys_c_comp = ss(ABCDc_comp(1:order, 1:order), ABCDc_comp(1:order, order+1:end), ...
+    ABCDc_comp(order+1, 1:order), ABCDc_comp(order+1, order+1:end));
+sys_d_comp = mapCtoD(sys_c_comp, tdac2_comp);
+[ntf_comp, ~] = calculateTF([sys_d_comp.a sys_d_comp.b; sys_d_comp.c sys_d_comp.d]);
+ntf_comp = cancelPZ(ntf_comp);
+
+freqs_ntf_hz = logspace(log10(f_min), log10(fs/2), 2000);
+z_eval = exp(2*pi*1j*freqs_ntf_hz/fs);
+NTF_target_dB = 20 * log10(abs(evalTF(ntf, z_eval)) + eps);
+NTF_uncomp_dB = 20 * log10(abs(evalTF(ntf_uncomp, z_eval)) + eps);
+NTF_comp_dB = 20 * log10(abs(evalTF(ntf_comp, z_eval)) + eps);
+
+fig1 = figure('Name', '3rd-Order CTDSM ELD Comparison');
 set(fig1, 'Position', [100 100 1450 950]);
 
 subplot(2, 2, 1);
-legend_labels = cell(1, numel(results) + 1);
 for k = 1:numel(results)
     V_out_dB = 20 * log10(results(k).V_out_mag(1:N/2+1) + eps);
-    semilogx(freqs_log_khz, V_out_dB(log_idx), 'LineWidth', 0.85);
+    semilogx(freqs_log_khz, V_out_dB(log_idx), 'LineWidth', 0.9);
     hold on;
-    legend_labels{k} = sprintf('%s (%.1f dB)', results(k).label, results(k).SNR);
 end
 semilogx([fB/1000 fB/1000], [-150 10], 'k--', 'LineWidth', 1);
 hold off;
 xlabel('Frequency (kHz)');
 ylabel('dBFS');
-title('Output Spectrum With DAC Clock Jitter');
-legend_labels{end} = 'BW Edge';
-legend(legend_labels{:}, 'Location', 'best');
+title('Output Spectrum With Ts/2 ELD');
+legend(sprintf('%s (%.1f dB)', results(1).label, results(1).SNR), ...
+    sprintf('%s (%.1f dB)', results(2).label, results(2).SNR), ...
+    'BW Edge', 'Location', 'best');
 grid on;
 axis([f_min/1000 fs/2000 -140 10]);
 
 subplot(2, 2, 2);
-snr_vals = [results.SNR];
-plot(jitter_rms_values*1e12, snr_vals, 'bo-', 'LineWidth', 1.2, 'MarkerSize', 5);
-xlabel('DAC Clock Jitter RMS (ps)');
-ylabel('SNR (dB)');
-title('SNR Versus DAC Clock Jitter');
+semilogx(freqs_ntf_hz/1000, NTF_target_dB, 'k-', 'LineWidth', 1.2);
+hold on;
+semilogx(freqs_ntf_hz/1000, NTF_uncomp_dB, 'r--', 'LineWidth', 1.0);
+semilogx(freqs_ntf_hz/1000, NTF_comp_dB, 'b-.', 'LineWidth', 1.0);
+semilogx([fB/1000 fB/1000], [-120 40], 'k:', 'LineWidth', 1);
+hold off;
+xlabel('Frequency (kHz)');
+ylabel('Magnitude (dB)');
+title('NTF Comparison');
+legend('Target NTF', 'Uncompensated ELD', 'Compensated ELD', 'BW Edge', ...
+    'Location', 'best');
 grid on;
+axis([f_min/1000 fs/2000 -120 40]);
 
 subplot(2, 2, 3);
 n_plot = min(400, numel(results(1).t));
 plot(results(1).t(1:n_plot)*1e6, results(1).u(1:n_plot), 'g-', 'LineWidth', 1.0);
 hold on;
-for k = 1:min(numel(results), 3)
-    stairs(results(k).t(1:n_plot)*1e6, results(k).v(1:n_plot), 'LineWidth', 1.0);
-end
+stairs(results(1).t(1:n_plot)*1e6, results(1).v(1:n_plot), 'r-', 'LineWidth', 1.0);
+stairs(results(2).t(1:n_plot)*1e6, results(2).v(1:n_plot), 'b-', 'LineWidth', 1.0);
 hold off;
 xlabel('Time (\mus)');
 ylabel('Amplitude');
-title('Sampled Output For First Few Jitter Cases');
-legend_entries = [{'Input'}, arrayfun(@(r) r.label, results(1:min(numel(results),3)), 'UniformOutput', false)];
-legend(legend_entries{:}, 'Location', 'best');
+title('Sampled Output Comparison');
+legend('Input', 'Uncompensated ELD', 'Compensated ELD', 'Location', 'best');
 grid on;
 
 subplot(2, 2, 4);
-summary_lines = cell(numel(results)+1, 1);
-summary_lines{1} = sprintf('Compensated CTDSM, tdac = [%.1f %.1f] Ts', tdac(1), tdac(2));
-for k = 1:numel(results)
-    summary_lines{k+1} = sprintf('%s rms: SNR = %.2f dB, ENOB = %.2f', ...
-        results(k).label, results(k).SNR, results(k).ENOB);
-end
-text(0.05, 0.95, strjoin(summary_lines, '\n'), 'FontSize', 11, 'VerticalAlignment', 'top');
+summary_text = sprintf(['ELD timing: [%.2f %.2f] Ts\n' ...
+    '%s: SNR = %.2f dB, ENOB = %.2f\n' ...
+    '%s: SNR = %.2f dB, ENOB = %.2f'], ...
+    tdac_eld(1), tdac_eld(2), ...
+    results(1).label, results(1).SNR, results(1).ENOB, ...
+    results(2).label, results(2).SNR, results(2).ENOB);
+text(0.05, 0.6, summary_text, 'FontSize', 12);
 axis off;
 title('Simulation Summary');
 
-plot_path = fullfile(script_dir, 'dsm_3rd_order_ct_dac_jitter_simulink_plots.png');
+plot_path = fullfile(results_dir, 'dsm_3rd_order_ct_eld_simulink_plots.png');
 saveas(fig1, plot_path);
 
-results_path = fullfile(script_dir, 'dsm_3rd_order_ct_dac_jitter_simulink_results.mat');
-save(results_path, 'results', 'plot_path', 'jitter_rms_values', 'tdac', ...
-    'ABCDc', 'fs', 'OSR', 'N', 'A_in');
+results_path = fullfile(results_dir, 'dsm_3rd_order_ct_eld_simulink_results.mat');
+save(results_path, 'results', 'plot_path', 'freqs_ntf_hz', 'NTF_target_dB', ...
+    'NTF_uncomp_dB', 'NTF_comp_dB', 'tdac_nom', 'tdac_eld', 'ABCDc_nom', ...
+    'ABCDc_comp', 'tdac2_comp', 'fs', 'OSR', 'N', 'A_in');
 
 fprintf('Saved: %s\n', plot_path);
 fprintf('Saved: %s\n', results_path);

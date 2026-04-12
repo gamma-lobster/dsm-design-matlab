@@ -1,72 +1,58 @@
 # DSM Design Examples
 
-This folder contains MATLAB reference designs and the Delta Sigma Toolbox.
+This folder is organized by role so the MATLAB references are easier to
+navigate and extend.
 
-## Folder Structure
+## Structure
 
-```
+```text
 references/
-├── dstoolbox/              # Delta Sigma Toolbox (117 functions)
-│   ├── synthesizeNTF.m
-│   ├── realizeNTF.m
-│   ├── stuffABCD.m
-│   ├── simulateDSM.m
-│   └── ... (113 more)
-│
-├── design_3rd_order_ciff_10mhz.m # 3rd-order, 4-bit, OSR=32, fs=10MHz example
-├── design_4th_order_ciff.m    # Full 4th-order CIFF example
-├── dsm_4th_order_simple.m     # Simplified headless version
-├── dsm_quick_design.m         # Quick-start template
-│
-├── dsm_4th_order_results.mat  # Simulation results
-├── dsm_plots.html           # HTML plots
-└── create_plots.py          # Python plot generator
+├── common/                 shared MATLAB helpers
+├── designs/                direct MATLAB design flows
+│   ├── dt/
+│   └── ct/
+├── simulink/               generated-model builders, runs, and tests
+│   ├── builders/
+│   ├── runs/
+│   └── tests/
+├── analysis/               standalone analysis and debug scripts
+│   ├── jitter/
+│   └── debug/
+├── components/             flash ADC, thermometer DAC, mismatch, DWA helpers
+├── results/                saved plots, MAT files, and generated models
+│   ├── dt/
+│   ├── ct/
+│   └── simulink/
+├── tools/                  optional Python helpers and extracted assets
+└── third_party/dstoolbox/  Richard Schreier's Delta Sigma Toolbox
 ```
 
 ## Quick Start
 
-All scripts automatically add the toolbox to MATLAB's path:
+The MATLAB entry points now use `common/setup_references_paths.m` to find
+the reorganized toolbox, component, and builder folders automatically.
 
-```matlab
-addpath(fullfile(fileparts(mfilename('fullpath')), 'dstoolbox'));
-```
+Useful starting points:
 
-Just run any `.m` file directly - no manual path setup needed!
+- `designs/dt/dsm_quick_design.m`
+- `designs/dt/design_3rd_order_ciff_10mhz.m`
+- `designs/ct/design_3rd_order_ct_dsm_10mhz.m`
+- `simulink/runs/run_3rd_order_ct_simulink_model.m`
+- `analysis/jitter/calculate_ct_dac_jitter_sjnr.m`
 
-## Example: 4th-Order CIFF
+## Results Layout
 
-```matlab
-% From MATLAB
-cd /path/to/references
-run('design_4th_order_ciff.m')
-```
+Generated outputs are grouped by topic instead of being mixed with source:
 
-## Results
-
-| Metric | Value |
-|--------|-------|
-| SNR | 103.72 dB |
-| ENOB | 16.94 bits |
-| Status | Stable |
-
-## Verified 3rd-Order Baseline
-
-The 3rd-order 10 MHz example and its generated Simulink model were rerun successfully on April 12, 2026.
-
-| Flow | SNR | ENOB | Notes |
-|------|-----|------|-------|
-| `design_3rd_order_ciff_10mhz.m` | 109.27 dB | 17.86 bits | Peak sweep SNR 112.44 dB at 0.85 V |
-| `run_3rd_order_simulink_model.m` | 109.21 dB | 17.85 bits | Simulink output matches MATLAB within about 0.06 dB |
-
-Fresh outputs from that verification:
-
-- `dsm_3rd_order_4bit_osr32_results.mat`
-- `dsm_3rd_order_4bit_osr32_plots.png`
-- `dsm_3rd_order_ciff_10mhz_simulink_results.mat`
-- `dsm_3rd_order_ciff_10mhz_simulink_plots.png`
+- `results/dt/`: direct MATLAB DT design outputs
+- `results/ct/base/`: direct MATLAB CT mapping outputs
+- `results/ct/eld/`: excess-loop-delay runs
+- `results/ct/jitter/`: DAC clock-jitter runs and analysis
+- `results/simulink/dt/`: DT Simulink models and outputs
+- `results/simulink/ct/`: CT Simulink models and outputs
 
 ## Notes
 
-- `dstoolbox/` contains Richard Schreier's Delta Sigma Toolbox
-- All scripts use **native MATLAB only** - no Python dependencies
-- Based on "Understanding Delta-Sigma Data Converters" (Appendix B)
+- `third_party/dstoolbox/` contains Richard Schreier's Delta Sigma Toolbox.
+- The MATLAB scripts are still intended to run directly without manual path setup.
+- `tools/` contains optional helpers; the main design flows remain native MATLAB.

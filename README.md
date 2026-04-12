@@ -7,21 +7,21 @@ MATLAB reference workspace for delta-sigma modulator design using Richard Schrei
 This repo appears to be a reimported in-progress project. The design assets are present and the main workflow is intact:
 
 - `SKILL.md`: repo-level operating guide for DSM design work
-- `references/dsm_quick_design.m`: editable quick-start template
-- `references/design_3rd_order_ciff_10mhz.m`: 3rd-order lowpass example with amplitude sweep
-- `references/design_3rd_order_ct_dsm_10mhz.m`: 3rd-order continuous-time mapping example using `realizeNTF_ct`
-- `references/design_4th_order_ciff.m`: full 4th-order CIFF example
-- `references/design_4th_order_ciff_with_dac_mismatch.m`: mismatch and DWA study
-- `references/build_dsm_simulink_model.m`: generated Simulink builder from DSM coefficients or ABCD data
-- `references/build_ct_dsm_simulink_model.m`: generic CTDSM Simulink builder with CT integrators, `fs` scaling, and sampled quantizer input
-- `references/calculate_ct_dac_jitter_sjnr.m`: standalone `J` and `SJNR` calculator for CT DAC clock jitter
-- `references/run_3rd_order_ct_dac_jitter_simulink_model.m`: CT DAC clock-jitter sweep for the compensated 3rd-order CTDSM
-- `references/run_3rd_order_ct_dac_jitter_theory_compare.m`: compare Simulink jitter modes against the equation-based SJNR estimate
-- `references/run_3rd_order_ct_eld_simulink_model.m`: Ts/2 excess-loop-delay comparison for uncompensated and compensated CTDSM cases
-- `references/run_3rd_order_ct_simulink_model.m`: CT Simulink execution and plotting flow
-- `references/run_3rd_order_simulink_model.m`: Simulink execution and plotting flow
-- `references/test_build_3rd_order_ct_simulink_model.m`: smoke test for the generic CT Simulink builder
-- `references/dstoolbox/`: bundled Delta Sigma Toolbox sources
+- `references/designs/dt/dsm_quick_design.m`: editable quick-start template
+- `references/designs/dt/design_3rd_order_ciff_10mhz.m`: 3rd-order lowpass example with amplitude sweep
+- `references/designs/ct/design_3rd_order_ct_dsm_10mhz.m`: 3rd-order continuous-time mapping example using `realizeNTF_ct`
+- `references/designs/dt/design_4th_order_ciff.m`: full 4th-order CIFF example
+- `references/designs/dt/design_4th_order_ciff_with_dac_mismatch.m`: mismatch and DWA study
+- `references/simulink/builders/build_dsm_simulink_model.m`: generated Simulink builder from DSM coefficients or ABCD data
+- `references/simulink/builders/build_ct_dsm_simulink_model.m`: generic CTDSM Simulink builder with CT integrators, `fs` scaling, and sampled quantizer input
+- `references/analysis/jitter/calculate_ct_dac_jitter_sjnr.m`: standalone `J` and `SJNR` calculator for CT DAC clock jitter
+- `references/simulink/runs/run_3rd_order_ct_dac_jitter_simulink_model.m`: CT DAC clock-jitter sweep for the compensated 3rd-order CTDSM
+- `references/simulink/runs/run_3rd_order_ct_dac_jitter_theory_compare.m`: compare Simulink jitter modes against the equation-based SJNR estimate
+- `references/simulink/runs/run_3rd_order_ct_eld_simulink_model.m`: Ts/2 excess-loop-delay comparison for uncompensated and compensated CTDSM cases
+- `references/simulink/runs/run_3rd_order_ct_simulink_model.m`: CT Simulink execution and plotting flow
+- `references/simulink/runs/run_3rd_order_simulink_model.m`: Simulink execution and plotting flow
+- `references/simulink/tests/test_build_3rd_order_ct_simulink_model.m`: smoke test for the generic CT Simulink builder
+- `references/third_party/dstoolbox/`: bundled Delta Sigma Toolbox sources
 
 There are also saved outputs in `references/*.mat`, `references/*.png`, and `references/*.slx`.
 
@@ -40,30 +40,30 @@ If a tool does not resolve inside a long-lived app shell, open a fresh terminal 
 
 The 3rd-order reference flow has been rerun successfully on April 12, 2026:
 
-- Direct MATLAB script: `references/design_3rd_order_ciff_10mhz.m`
-- Continuous-time mapped script: `references/design_3rd_order_ct_dsm_10mhz.m`
-- Continuous-time Simulink build test: `references/test_build_3rd_order_ct_simulink_model.m`
-- Continuous-time Simulink run: `references/run_3rd_order_ct_simulink_model.m`
-- Continuous-time Simulink ELD comparison: `references/run_3rd_order_ct_eld_simulink_model.m`
-- Generated Simulink flow: `references/run_3rd_order_simulink_model.m`
+- Direct MATLAB script: `references/designs/dt/design_3rd_order_ciff_10mhz.m`
+- Continuous-time mapped script: `references/designs/ct/design_3rd_order_ct_dsm_10mhz.m`
+- Continuous-time Simulink build test: `references/simulink/tests/test_build_3rd_order_ct_simulink_model.m`
+- Continuous-time Simulink run: `references/simulink/runs/run_3rd_order_ct_simulink_model.m`
+- Continuous-time Simulink ELD comparison: `references/simulink/runs/run_3rd_order_ct_eld_simulink_model.m`
+- Generated Simulink flow: `references/simulink/runs/run_3rd_order_simulink_model.m`
 
 Saved results:
 
-- `references/dsm_3rd_order_4bit_osr32_results.mat`
-- `references/dsm_3rd_order_4bit_osr32_plots.png`
-- `references/dsm_3rd_order_ct_10mhz_results.mat`
-- `references/dsm_3rd_order_ct_10mhz_plots.png`
-- `references/dsm_3rd_order_ct_10mhz_topology_model.slx`
-- `references/dsm_3rd_order_ct_10mhz_simulink_results.mat`
-- `references/dsm_3rd_order_ct_10mhz_simulink_plots.png`
-- `references/dsm_3rd_order_ct_eld_simulink_results.mat`
-- `references/dsm_3rd_order_ct_eld_simulink_plots.png`
-- `references/dsm_3rd_order_ct_dac_jitter_simulink_results.mat`
-- `references/dsm_3rd_order_ct_dac_jitter_simulink_plots.png`
-- `references/dsm_3rd_order_ct_dac_jitter_theory_compare.mat`
-- `references/dsm_3rd_order_ct_dac_jitter_theory_compare.png`
-- `references/dsm_3rd_order_ciff_10mhz_simulink_results.mat`
-- `references/dsm_3rd_order_ciff_10mhz_simulink_plots.png`
+- `references/results/dt/dsm_3rd_order_4bit_osr32_results.mat`
+- `references/results/dt/dsm_3rd_order_4bit_osr32_plots.png`
+- `references/results/ct/base/dsm_3rd_order_ct_10mhz_results.mat`
+- `references/results/ct/base/dsm_3rd_order_ct_10mhz_plots.png`
+- `references/results/simulink/ct/dsm_3rd_order_ct_10mhz_topology_model.slx`
+- `references/results/simulink/ct/dsm_3rd_order_ct_10mhz_simulink_results.mat`
+- `references/results/simulink/ct/dsm_3rd_order_ct_10mhz_simulink_plots.png`
+- `references/results/ct/eld/dsm_3rd_order_ct_eld_simulink_results.mat`
+- `references/results/ct/eld/dsm_3rd_order_ct_eld_simulink_plots.png`
+- `references/results/ct/jitter/dsm_3rd_order_ct_dac_jitter_simulink_results.mat`
+- `references/results/ct/jitter/dsm_3rd_order_ct_dac_jitter_simulink_plots.png`
+- `references/results/ct/jitter/dsm_3rd_order_ct_dac_jitter_theory_compare.mat`
+- `references/results/ct/jitter/dsm_3rd_order_ct_dac_jitter_theory_compare.png`
+- `references/results/simulink/dt/dsm_3rd_order_ciff_10mhz_simulink_results.mat`
+- `references/results/simulink/dt/dsm_3rd_order_ciff_10mhz_simulink_plots.png`
 
 Measured baseline:
 
@@ -96,17 +96,17 @@ For the current 3rd-order compensated CTDSM, both jitter modes produce similar S
 
 If you want to continue the project, these are the most likely starting points:
 
-1. Run `references/dsm_quick_design.m` for a fresh parameterized DSM design.
-2. Run `references/design_3rd_order_ciff_10mhz.m` to validate the current 3rd-order reference flow.
-3. Run `references/design_3rd_order_ct_dsm_10mhz.m` to validate the continuous-time mapping flow.
-4. Run `references/test_build_3rd_order_ct_simulink_model.m` to build and smoke-test the CT Simulink model.
-5. Run `references/run_3rd_order_ct_simulink_model.m` to simulate and plot the CT Simulink model.
-6. Run `references/run_3rd_order_ct_eld_simulink_model.m` to compare uncompensated and compensated `Ts/2` excess-loop-delay behavior.
-7. Run `references/run_3rd_order_ct_dac_jitter_simulink_model.m` to sweep DAC clock jitter in the CT Simulink model.
-8. Run `references/calculate_ct_dac_jitter_sjnr.m` to reproduce the current equation-style `J` and `SJNR` calculation.
-9. Run `references/run_3rd_order_ct_dac_jitter_theory_compare.m` to compare the Simulink jitter modes against the equation-based estimate.
-10. Run `references/run_3rd_order_simulink_model.m` to verify the generated discrete-time Simulink topology path.
-11. Run `references/design_4th_order_ciff_with_dac_mismatch.m` if the next focus is DAC mismatch or DWA behavior.
+1. Run `references/designs/dt/dsm_quick_design.m` for a fresh parameterized DSM design.
+2. Run `references/designs/dt/design_3rd_order_ciff_10mhz.m` to validate the current 3rd-order reference flow.
+3. Run `references/designs/ct/design_3rd_order_ct_dsm_10mhz.m` to validate the continuous-time mapping flow.
+4. Run `references/simulink/tests/test_build_3rd_order_ct_simulink_model.m` to build and smoke-test the CT Simulink model.
+5. Run `references/simulink/runs/run_3rd_order_ct_simulink_model.m` to simulate and plot the CT Simulink model.
+6. Run `references/simulink/runs/run_3rd_order_ct_eld_simulink_model.m` to compare uncompensated and compensated `Ts/2` excess-loop-delay behavior.
+7. Run `references/simulink/runs/run_3rd_order_ct_dac_jitter_simulink_model.m` to sweep DAC clock jitter in the CT Simulink model.
+8. Run `references/analysis/jitter/calculate_ct_dac_jitter_sjnr.m` to reproduce the current equation-style `J` and `SJNR` calculation.
+9. Run `references/simulink/runs/run_3rd_order_ct_dac_jitter_theory_compare.m` to compare the Simulink jitter modes against the equation-based estimate.
+10. Run `references/simulink/runs/run_3rd_order_simulink_model.m` to verify the generated discrete-time Simulink topology path.
+11. Run `references/designs/dt/design_4th_order_ciff_with_dac_mismatch.m` if the next focus is DAC mismatch or DWA behavior.
 
 ## Recovery Work Done
 
