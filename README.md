@@ -14,6 +14,9 @@ This repo appears to be a reimported in-progress project. The design assets are 
 - `references/design_4th_order_ciff_with_dac_mismatch.m`: mismatch and DWA study
 - `references/build_dsm_simulink_model.m`: generated Simulink builder from DSM coefficients or ABCD data
 - `references/build_ct_dsm_simulink_model.m`: generic CTDSM Simulink builder with CT integrators, `fs` scaling, and sampled quantizer input
+- `references/calculate_ct_dac_jitter_sjnr.m`: standalone `J` and `SJNR` calculator for CT DAC clock jitter
+- `references/run_3rd_order_ct_dac_jitter_simulink_model.m`: CT DAC clock-jitter sweep for the compensated 3rd-order CTDSM
+- `references/run_3rd_order_ct_dac_jitter_theory_compare.m`: compare Simulink jitter modes against the equation-based SJNR estimate
 - `references/run_3rd_order_ct_eld_simulink_model.m`: Ts/2 excess-loop-delay comparison for uncompensated and compensated CTDSM cases
 - `references/run_3rd_order_ct_simulink_model.m`: CT Simulink execution and plotting flow
 - `references/run_3rd_order_simulink_model.m`: Simulink execution and plotting flow
@@ -55,6 +58,10 @@ Saved results:
 - `references/dsm_3rd_order_ct_10mhz_simulink_plots.png`
 - `references/dsm_3rd_order_ct_eld_simulink_results.mat`
 - `references/dsm_3rd_order_ct_eld_simulink_plots.png`
+- `references/dsm_3rd_order_ct_dac_jitter_simulink_results.mat`
+- `references/dsm_3rd_order_ct_dac_jitter_simulink_plots.png`
+- `references/dsm_3rd_order_ct_dac_jitter_theory_compare.mat`
+- `references/dsm_3rd_order_ct_dac_jitter_theory_compare.png`
 - `references/dsm_3rd_order_ciff_10mhz_simulink_results.mat`
 - `references/dsm_3rd_order_ciff_10mhz_simulink_plots.png`
 
@@ -67,6 +74,9 @@ Measured baseline:
 - Continuous-time Simulink: `SNR = 106.97 dB`, `ENOB = 17.48 bits`
 - Continuous-time Simulink with `Ts/2` ELD, uncompensated: `SNR = 27.74 dB`, `ENOB = 4.32 bits`
 - Continuous-time Simulink with `Ts/2` ELD, compensated: `SNR = 107.22 dB`, `ENOB = 17.52 bits`
+- Continuous-time Simulink with `Ts/2` ELD and `500 ps` DAC edge jitter: `SNR = 66.02 dB`
+- Continuous-time Simulink with `Ts/2` ELD and `500 ps` equivalent DAC jitter: `SNR = 66.73 dB`
+- Equation-style CT DAC jitter estimate for the same `500 ps` case: `J = 4.75e-9`, `SJNR = 74.20 dB`
 - Simulink: `SNR = 109.21 dB`, `ENOB = 17.85 bits`
 
 The direct MATLAB and Simulink paths agree within about `0.06 dB`, which is a strong indication that the current 3rd-order design path is intact.
@@ -74,6 +84,13 @@ The direct MATLAB and Simulink paths agree within about `0.06 dB`, which is a st
 The current CT path uses the toolbox `FF` continuous-time realization so the generated Simulink topology stays CIFF-like, keeps an explicit sampler ahead of the quantizer, and scales each CT integrator drive by `fs` for correct normalization.
 
 The CT builder now also supports delayed DAC pulses with width up to one sample period, which allows direct modeling of excess loop delay. For the verified half-cycle ELD case, the uncompensated model uses the original CT coefficients with delayed DAC timing `tdac = [0.5 1.5]`, while the compensated model uses `realizeNTF_ct(ntf, 'FF', [0.5 1.5])` so the compensation path is synthesized automatically by the toolbox.
+
+The CT builder also supports two DAC clock-jitter modes for full-width NRZ-like delayed DAC pulses:
+
+- `jitter_mode='edge'`: perturbs the DAC update edge in continuous time
+- `jitter_mode='equivalent'`: injects the textbook-style sampled jitter error term derived from `v[n] - v[n-1]`
+
+For the current 3rd-order compensated CTDSM, both jitter modes produce similar SNR at `500 ps` RMS, which suggests the large mismatch from early hand calculations came mainly from equation normalization and measurement setup rather than the absence of a sampled jitter model. When doing coherent tone measurements, remember MATLAB FFT arrays are 1-based: a tone at DFT bin `k` appears at array index `k+1`.
 
 ## Good Resume Points
 
@@ -85,8 +102,11 @@ If you want to continue the project, these are the most likely starting points:
 4. Run `references/test_build_3rd_order_ct_simulink_model.m` to build and smoke-test the CT Simulink model.
 5. Run `references/run_3rd_order_ct_simulink_model.m` to simulate and plot the CT Simulink model.
 6. Run `references/run_3rd_order_ct_eld_simulink_model.m` to compare uncompensated and compensated `Ts/2` excess-loop-delay behavior.
-7. Run `references/run_3rd_order_simulink_model.m` to verify the generated discrete-time Simulink topology path.
-8. Run `references/design_4th_order_ciff_with_dac_mismatch.m` if the next focus is DAC mismatch or DWA behavior.
+7. Run `references/run_3rd_order_ct_dac_jitter_simulink_model.m` to sweep DAC clock jitter in the CT Simulink model.
+8. Run `references/calculate_ct_dac_jitter_sjnr.m` to reproduce the current equation-style `J` and `SJNR` calculation.
+9. Run `references/run_3rd_order_ct_dac_jitter_theory_compare.m` to compare the Simulink jitter modes against the equation-based estimate.
+10. Run `references/run_3rd_order_simulink_model.m` to verify the generated discrete-time Simulink topology path.
+11. Run `references/design_4th_order_ciff_with_dac_mismatch.m` if the next focus is DAC mismatch or DWA behavior.
 
 ## Recovery Work Done
 

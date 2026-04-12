@@ -64,7 +64,10 @@ For CTDSM work:
 6. Place an explicit sampler before the ADC or quantizer.
 7. Model excess loop delay by adjusting `tdac`, for example `tdac=[0.5 1.5]` for half-cycle ELD with an NRZ DAC.
 8. For compensated ELD cases, let `realizeNTF_ct(...)` synthesize the needed direct or compensation path from the delayed `tdac`.
-9. Measure SNR from the sampled quantizer output, and inspect inter-sample waveforms separately.
+9. For DAC clock jitter on a delayed NRZ-like CT feedback pulse, start with `jitter_mode='edge'` to perturb the DAC update edge directly in Simulink.
+10. If you want a sampled textbook-style DAC jitter model, use `jitter_mode='equivalent'`, which injects an error term proportional to `v[n] - v[n-1]`.
+11. Use `references/calculate_ct_dac_jitter_sjnr.m` for the current standalone equation-style `J` and `SJNR` calculation.
+12. Measure SNR from the sampled quantizer output, and inspect inter-sample waveforms separately.
 
 ## Parameter Heuristics
 
@@ -80,6 +83,7 @@ Use these as defaults when the user does not provide a spec:
 | `form` | `CIFF` | Good default for lowpass multi-bit examples |
 | `ct_form` | `FF` | Good default when mapping a lowpass CIFF-like design to CT |
 | `tdac` | `[0 1]` | Use `[0.5 1.5]` to study half-cycle ELD with NRZ feedback |
+| `jitter_mode` | `edge` | Use `equivalent` for the sampled textbook-style DAC jitter model |
 | `n_bits` | 1 to 5 | Multi-bit improves SNR but makes DAC mismatch relevant |
 
 Topology guidance:
@@ -90,6 +94,8 @@ Topology guidance:
 - CT `FF`: good match when you want a CIFF-like CT realization with feedforward output summation.
 - CT `FB`: use when a feedback-form CT loop filter is specifically desired.
 - Delayed `tdac`: use to inject excess loop delay directly into the CT realization and Simulink DAC waveform.
+- `jitter_mode='edge'`: continuous-time DAC edge perturbation, useful for waveform-level jitter studies.
+- `jitter_mode='equivalent'`: sampled DAC jitter error injection, useful when comparing against equation-based SJNR estimates.
 
 ## Simulation And Analysis Rules
 
@@ -133,8 +139,10 @@ If a DSM diverges or underperforms, check these first:
 - For CTDSM, the integrator drives are missing the required `fs` scaling.
 - For CTDSM, the DAC timing used in Simulink does not match the `tdac` used in `realizeNTF_ct`.
 - For CTDSM with ELD, compensation may be missing if delayed `tdac` is applied to an uncompensated loop filter.
+- For CTDSM jitter studies, confirm whether the run is using edge-time jitter or equivalent sampled jitter before comparing to theory.
 - The signal bin is outside the intended passband.
 - The FFT and window normalization are inconsistent.
+- In coherent FFT tests, remember a tone at DFT bin `k` appears at MATLAB FFT array index `k+1`.
 - Harmonics or DC leakage are being counted as noise incorrectly.
 
 When debugging, report:
@@ -159,6 +167,9 @@ Open only the reference files needed for the current task.
 - `references/build_ct_dsm_simulink_model.m`: use when the user wants a generic CTDSM Simulink model with CT integrators and a sampled quantizer input.
 - `references/run_3rd_order_ct_simulink_model.m`: use when the user wants the CT Simulink model executed and plotted.
 - `references/run_3rd_order_ct_eld_simulink_model.m`: use when the user wants a verified uncompensated-versus-compensated ELD comparison in the CT Simulink model.
+- `references/run_3rd_order_ct_dac_jitter_simulink_model.m`: use when the user wants a DAC clock-jitter sweep in the CT Simulink model.
+- `references/run_3rd_order_ct_dac_jitter_theory_compare.m`: use when the user wants edge-jitter, equivalent-jitter, and equation-style SJNR compared side by side.
+- `references/calculate_ct_dac_jitter_sjnr.m`: use when the user wants the standalone `J` and `SJNR` calculation.
 - `references/debug_snr.m`: use when SNR calculations disagree with expectations.
 - `references/flash_adc_quantizer.m`: flash ADC with thermometer-code output.
 - `references/thermometer_dac.m`: ideal thermometer DAC reconstruction.
