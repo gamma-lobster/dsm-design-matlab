@@ -1,6 +1,6 @@
 ---
 name: dsm-design-matlab
-description: Design and analyze delta-sigma modulators in MATLAB using Richard Schreier's Delta Sigma Toolbox. Use when Codex needs to synthesize an NTF, realize a DSM topology, build an ABCD matrix, simulate SNR or ENOB, troubleshoot stability, or model multi-bit flash ADC and thermometer DAC behavior for DSM work.
+description: Design and analyze delta-sigma modulators in MATLAB using Richard Schreier's Delta Sigma Toolbox. Use when Codex needs to synthesize an NTF, realize DT or CT DSM topologies, build ABCD or ABCDc matrices, simulate SNR or ENOB, troubleshoot stability, or model multi-bit flash ADC and thermometer DAC behavior for DSM work.
 ---
 
 # DSM Design In MATLAB
@@ -9,6 +9,12 @@ Use the native MATLAB Delta Sigma Toolbox workflow:
 
 ```matlab
 synthesizeNTF -> realizeNTF -> stuffABCD -> simulate/analyze
+```
+
+For continuous-time DSM work, use:
+
+```matlab
+synthesizeNTF -> realizeNTF_ct -> mapCtoD -> simulate/analyze
 ```
 
 Prefer the bundled MATLAB references in `references/` over inventing new implementations.
@@ -26,7 +32,9 @@ addpath(fullfile(fileparts(mfilename('fullpath')), 'dstoolbox'));
 
 which synthesizeNTF
 which realizeNTF
+which realizeNTF_ct
 which stuffABCD
+which mapCtoD
 which simulateDSM
 ```
 
@@ -46,6 +54,16 @@ Follow this sequence unless the user asks for a narrower task.
 
 Keep designs normalized unless the user gives physical circuit scaling requirements.
 
+For CTDSM work:
+
+1. Synthesize the target DT NTF with `synthesizeNTF(...)`.
+2. Realize the CT loop filter with `realizeNTF_ct(ntf, ct_form, tdac)`.
+3. Use `ct_form='FF'` when a CIFF-like feedforward CT architecture is desired.
+4. Convert the CT loop to a sampled equivalent with `mapCtoD(...)` for sample-time validation.
+5. When building a CT Simulink model with continuous integrators, scale each integrator drive by `fs` (equivalently `1/Ts`) so the normalized toolbox coefficients map correctly into seconds.
+6. Place an explicit sampler before the ADC or quantizer.
+7. Measure SNR from the sampled quantizer output, and inspect inter-sample waveforms separately.
+
 ## Parameter Heuristics
 
 Use these as defaults when the user does not provide a spec:
@@ -58,6 +76,7 @@ Use these as defaults when the user does not provide a spec:
 | `f0` | 0 | Use `0.25` for bandpass-at-`fs/4` cases |
 | `opt` | 1 | Prefer optimized zeros |
 | `form` | `CIFF` | Good default for lowpass multi-bit examples |
+| `ct_form` | `FF` | Good default when mapping a lowpass CIFF-like design to CT |
 | `n_bits` | 1 to 5 | Multi-bit improves SNR but makes DAC mismatch relevant |
 
 Topology guidance:
@@ -65,6 +84,8 @@ Topology guidance:
 - `CIFF`: default lowpass choice with straightforward signal transfer behavior.
 - `CIFB`: use when feedback-form realization is preferred.
 - `CRFB` or `CRFF`: use for resonator and bandpass-oriented designs.
+- CT `FF`: good match when you want a CIFF-like CT realization with feedforward output summation.
+- CT `FB`: use when a feedback-form CT loop filter is specifically desired.
 
 ## Simulation And Analysis Rules
 
@@ -103,6 +124,9 @@ If a DSM diverges or underperforms, check these first:
 - Input amplitude is too high for the chosen order and `H_inf`.
 - `H_inf` is too aggressive for the architecture.
 - The chosen topology does not match the intended lowpass or bandpass behavior.
+- For CTDSM, the `ct_form` does not match the intended CIFF-like or CIFB-like structure.
+- For CTDSM, the sampler is misplaced or missing ahead of the quantizer.
+- For CTDSM, the integrator drives are missing the required `fs` scaling.
 - The signal bin is outside the intended passband.
 - The FFT and window normalization are inconsistent.
 - Harmonics or DC leakage are being counted as noise incorrectly.
@@ -111,6 +135,7 @@ When debugging, report:
 
 - coefficient vectors `a`, `g`, `b`, `c`
 - `ABCD`
+- `ABCDc`, `tdac`, and `tdac2` for CT realizations
 - peak internal state magnitudes
 - output range and clipping behavior
 - in-band signal bins and excluded noise bins
@@ -120,9 +145,12 @@ When debugging, report:
 Open only the reference files needed for the current task.
 
 - `references/dsm_quick_design.m`: best starting point for a new lowpass DSM design.
+- `references/design_3rd_order_ct_dsm_10mhz.m`: best starting point for the current continuous-time 3rd-order reference flow.
 - `references/design_4th_order_ciff.m`: complete worked example with reporting and plots.
 - `references/dsm_4th_order_simple.m`: headless or simplified variant.
 - `references/build_dsm_simulink_model.m`: use when the user wants a Simulink model assembled from the design.
+- `references/build_ct_dsm_simulink_model.m`: use when the user wants a generic CTDSM Simulink model with CT integrators and a sampled quantizer input.
+- `references/run_3rd_order_ct_simulink_model.m`: use when the user wants the CT Simulink model executed and plotted.
 - `references/debug_snr.m`: use when SNR calculations disagree with expectations.
 - `references/flash_adc_quantizer.m`: flash ADC with thermometer-code output.
 - `references/thermometer_dac.m`: ideal thermometer DAC reconstruction.
@@ -149,8 +177,8 @@ When helping with a design, prefer this output structure:
 
 1. Restate the target spec in MATLAB terms.
 2. Show the chosen design parameters and why they are reasonable.
-3. Provide or edit MATLAB code that follows the toolbox workflow.
+3. Provide or edit MATLAB code that follows the DT or CT toolbox workflow.
 4. Summarize the expected stability and performance limits.
-5. Call out any assumptions, especially around OSR, topology, quantizer bits, and mismatch.
+5. Call out any assumptions, especially around OSR, topology, quantizer bits, DAC timing, and mismatch.
 
 Keep explanations practical and tied to the provided MATLAB files.
