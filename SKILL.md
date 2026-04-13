@@ -1,6 +1,6 @@
 ---
 name: dsm-design-matlab
-description: Design and analyze delta-sigma modulators in MATLAB using Richard Schreier's Delta Sigma Toolbox. Use when Codex needs to synthesize an NTF, realize DT or CT DSM topologies, build ABCD or ABCDc matrices, simulate SNR or ENOB, troubleshoot stability, or model multi-bit flash ADC and thermometer DAC behavior for DSM work.
+description: Design and analyze delta-sigma modulators in MATLAB using Richard Schreier's Delta Sigma Toolbox. Use when Codex needs to synthesize an NTF, realize DT or CT DSM topologies, build ABCD or ABCDc matrices, assemble MASH structures, simulate SNR or ENOB, troubleshoot stability, or model multi-bit flash ADC and thermometer DAC behavior for DSM work.
 ---
 
 # DSM Design In MATLAB
@@ -54,6 +54,16 @@ Follow this sequence unless the user asks for a narrower task.
 
 Keep designs normalized unless the user gives physical circuit scaling requirements.
 
+For DT MASH work:
+
+1. Design or provide one NTF per stage.
+2. Realize each stage with `realizeNTF(..., 'CIFF')` or the requested form.
+3. Drive stage 1 from the external input and each later stage from the previous stage residue.
+4. Form the residue as `y_k - v_k`.
+5. For textbook cascaded residue-shaping MASH cancellation, combine the stage outputs digitally with cumulative previous-stage NTF products:
+   `v_mash = v_1 + NTF_1(z)v_2 + NTF_1(z)NTF_2(z)v_3 + ...`
+6. Prefer explicit stage-by-stage simulation when debugging residue transfer or cancellation.
+
 For CTDSM work:
 
 1. Synthesize the target DT NTF with `synthesizeNTF(...)`.
@@ -81,6 +91,7 @@ Use these as defaults when the user does not provide a spec:
 | `f0` | 0 | Use `0.25` for bandpass-at-`fs/4` cases |
 | `opt` | 1 | Prefer optimized zeros |
 | `form` | `CIFF` | Good default for lowpass multi-bit examples |
+| `MASH structure` | `2-1` | Good first cascaded DT reference example |
 | `ct_form` | `FF` | Good default when mapping a lowpass CIFF-like design to CT |
 | `tdac` | `[0 1]` | Use `[0.5 1.5]` to study half-cycle ELD with NRZ feedback |
 | `jitter_mode` | `edge` | Use `equivalent` for the sampled textbook-style DAC jitter model |
@@ -89,6 +100,7 @@ Use these as defaults when the user does not provide a spec:
 Topology guidance:
 
 - `CIFF`: default lowpass choice with straightforward signal transfer behavior.
+- `MASH 2-1`: good introductory DT cascaded-noise-shaping case when you want a 3rd-order overall response from stable lower-order stages.
 - `CIFB`: use when feedback-form realization is preferred.
 - `CRFB` or `CRFF`: use for resonator and bandpass-oriented designs.
 - CT `FF`: good match when you want a CIFF-like CT realization with feedforward output summation.
@@ -162,9 +174,13 @@ Open only the reference files needed for the current task.
 - `references/designs/dt/dsm_quick_design.m`: best starting point for a new lowpass DSM design.
 - `references/designs/ct/design_3rd_order_ct_dsm_10mhz.m`: best starting point for the current continuous-time 3rd-order reference flow.
 - `references/designs/dt/design_4th_order_ciff.m`: complete worked example with reporting and plots.
+- `references/designs/dt/design_mash_2_1_ciff_10mhz.m`: best starting point for the current DT 2-1 MASH reference flow.
 - `references/designs/dt/dsm_4th_order_simple.m`: headless or simplified variant.
 - `references/simulink/builders/build_dsm_simulink_model.m`: use when the user wants a Simulink model assembled from the design.
+- `references/simulink/builders/build_mash_dsm_simulink_model.m`: use when the user wants a generic DT MASH Simulink model assembled from stage descriptions and digital cancellation filters.
+- `references/simulink/builders/build_mash_21_dsm_simulink_model.m`: thin compatibility wrapper for the current 2-1 MASH example.
 - `references/simulink/builders/build_ct_dsm_simulink_model.m`: use when the user wants a generic CTDSM Simulink model with CT integrators and a sampled quantizer input.
+- `references/simulink/runs/run_mash_2_1_simulink_model.m`: use when the user wants the current MASH Simulink model executed and plotted.
 - `references/simulink/runs/run_3rd_order_ct_simulink_model.m`: use when the user wants the CT Simulink model executed and plotted.
 - `references/simulink/runs/run_3rd_order_ct_eld_simulink_model.m`: use when the user wants a verified uncompensated-versus-compensated ELD comparison in the CT Simulink model.
 - `references/simulink/runs/run_3rd_order_ct_dac_jitter_simulink_model.m`: use when the user wants a DAC clock-jitter sweep in the CT Simulink model.
@@ -198,6 +214,6 @@ When helping with a design, prefer this output structure:
 2. Show the chosen design parameters and why they are reasonable.
 3. Provide or edit MATLAB code that follows the DT or CT toolbox workflow.
 4. Summarize the expected stability and performance limits.
-5. Call out any assumptions, especially around OSR, topology, quantizer bits, DAC timing, ELD compensation, and mismatch.
+5. Call out any assumptions, especially around OSR, topology, stage partitioning for MASH, quantizer bits, DAC timing, ELD compensation, and mismatch.
 
 Keep explanations practical and tied to the provided MATLAB files.

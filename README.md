@@ -9,10 +9,13 @@ This repo appears to be a reimported in-progress project. The design assets are 
 - `SKILL.md`: repo-level operating guide for DSM design work
 - `references/designs/dt/dsm_quick_design.m`: editable quick-start template
 - `references/designs/dt/design_3rd_order_ciff_10mhz.m`: 3rd-order lowpass example with amplitude sweep
+- `references/designs/dt/design_mash_2_1_ciff_10mhz.m`: DT 2-1 MASH example with a 2nd-order CIFF first stage, a 1st-order residue stage, and 4-bit quantizers
 - `references/designs/ct/design_3rd_order_ct_dsm_10mhz.m`: 3rd-order continuous-time mapping example using `realizeNTF_ct`
 - `references/designs/dt/design_4th_order_ciff.m`: full 4th-order CIFF example
 - `references/designs/dt/design_4th_order_ciff_with_dac_mismatch.m`: mismatch and DWA study
 - `references/simulink/builders/build_dsm_simulink_model.m`: generated Simulink builder from DSM coefficients or ABCD data
+- `references/simulink/builders/build_mash_dsm_simulink_model.m`: generic DT MASH Simulink builder for cascaded residue-shaping stages and digital error cancellation
+- `references/simulink/builders/build_mash_21_dsm_simulink_model.m`: compatibility wrapper for the current 2-1 MASH reference case
 - `references/simulink/builders/build_ct_dsm_simulink_model.m`: generic CTDSM Simulink builder with CT integrators, `fs` scaling, and sampled quantizer input
 - `references/analysis/jitter/calculate_ct_dac_jitter_sjnr.m`: standalone `J` and `SJNR` calculator for CT DAC clock jitter
 - `references/simulink/runs/run_3rd_order_ct_dac_jitter_simulink_model.m`: CT DAC clock-jitter sweep for the compensated 3rd-order CTDSM
@@ -47,6 +50,12 @@ The 3rd-order reference flow has been rerun successfully on April 12, 2026:
 - Continuous-time Simulink ELD comparison: `references/simulink/runs/run_3rd_order_ct_eld_simulink_model.m`
 - Generated Simulink flow: `references/simulink/runs/run_3rd_order_simulink_model.m`
 
+The 2-1 MASH reference flow has also been added and validated on April 13, 2026:
+
+- Direct MATLAB script: `references/designs/dt/design_mash_2_1_ciff_10mhz.m`
+- Generic MASH Simulink build smoke test: `references/simulink/tests/test_build_mash_2_1_simulink_model.m`
+- Generic MASH Simulink run: `references/simulink/runs/run_mash_2_1_simulink_model.m`
+
 Saved results:
 
 - `references/results/dt/dsm_3rd_order_4bit_osr32_results.mat`
@@ -64,6 +73,11 @@ Saved results:
 - `references/results/ct/jitter/dsm_3rd_order_ct_dac_jitter_theory_compare.png`
 - `references/results/simulink/dt/dsm_3rd_order_ciff_10mhz_simulink_results.mat`
 - `references/results/simulink/dt/dsm_3rd_order_ciff_10mhz_simulink_plots.png`
+- `references/results/dt/dsm_mash_2_1_ciff_10mhz_results.mat`
+- `references/results/dt/dsm_mash_2_1_ciff_10mhz_plots.png`
+- `references/results/simulink/dt/dsm_mash_2_1_ciff_10mhz_topology_model.slx`
+- `references/results/simulink/dt/dsm_mash_2_1_ciff_10mhz_simulink_results.mat`
+- `references/results/simulink/dt/dsm_mash_2_1_ciff_10mhz_simulink_plots.png`
 
 Measured baseline:
 
@@ -78,8 +92,13 @@ Measured baseline:
 - Continuous-time Simulink with `Ts/2` ELD and `500 ps` equivalent DAC jitter: `SNR = 66.73 dB`
 - Equation-style CT DAC jitter estimate for the same `500 ps` case: `J = 2.98e-8`, `SJNR = 66.22 dB`
 - Simulink: `SNR = 109.21 dB`, `ENOB = 17.85 bits`
+- 2-1 MASH direct MATLAB: `SNR = 92.44 dB`, `ENOB = 15.06 bits`
+- 2-1 MASH direct MATLAB sweep peak: `99.26 dB` at `0.85 V`
+- 2-1 MASH Simulink: `SNR = 92.44 dB`, `ENOB = 15.06 bits`
 
 The direct MATLAB and Simulink paths agree within about `0.06 dB`, which is a strong indication that the current 3rd-order design path is intact.
+
+For the current 2-1 MASH example, the direct MATLAB and Simulink paths agree to within the displayed precision. The generic MASH Simulink builder now uses an explicit causal stage realization so the generated model avoids the earlier algebraic-loop warnings while keeping the same sampled behavior.
 
 The current CT path uses the toolbox `FF` continuous-time realization so the generated Simulink topology stays CIFF-like, keeps an explicit sampler ahead of the quantizer, and scales each CT integrator drive by `fs` for correct normalization.
 
@@ -107,6 +126,8 @@ If you want to continue the project, these are the most likely starting points:
 9. Run `references/simulink/runs/run_3rd_order_ct_dac_jitter_theory_compare.m` to compare the Simulink jitter modes against the equation-based estimate.
 10. Run `references/simulink/runs/run_3rd_order_simulink_model.m` to verify the generated discrete-time Simulink topology path.
 11. Run `references/designs/dt/design_4th_order_ciff_with_dac_mismatch.m` if the next focus is DAC mismatch or DWA behavior.
+12. Run `references/designs/dt/design_mash_2_1_ciff_10mhz.m` to study the current DT 2-1 MASH reference design.
+13. Run `references/simulink/runs/run_mash_2_1_simulink_model.m` to regenerate the current MASH Simulink topology and plots.
 
 ## Recovery Work Done
 
