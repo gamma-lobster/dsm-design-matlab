@@ -40,6 +40,17 @@ Useful starting points:
 - `simulink/runs/run_3rd_order_ct_simulink_model.m`
 - `analysis/jitter/calculate_ct_dac_jitter_sjnr.m`
 
+The skill guidance is also split by scenario so Codex can load only what it needs:
+
+- `../SKILL.md`: top-level dispatcher
+- `workflows/dt_design.md`: discrete-time design flow
+- `workflows/ct_design.md`: continuous-time design, ELD, and jitter flow
+- `workflows/mash.md`: cascaded MASH flow
+- `workflows/simulink.md`: Simulink builders and runs
+- `analysis/snr_enob.md`: FFT-based measurement rules
+- `analysis/stability_debug.md`: debugging checklist
+- `components/multi_bit_feedback.md`: flash ADC, DAC mismatch, and DWA guidance
+
 ## Results Layout
 
 Generated outputs are grouped by topic instead of being mixed with source:

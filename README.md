@@ -7,6 +7,7 @@ MATLAB reference workspace for delta-sigma modulator design using Richard Schrei
 This repo appears to be a reimported in-progress project. The design assets are present and the main workflow is intact:
 
 - `SKILL.md`: repo-level operating guide for DSM design work
+- `references/workflows/*.md`, `references/analysis/*.md`, `references/components/*.md`: scenario-specific skill guides that keep the top-level skill lean
 - `references/designs/dt/dsm_quick_design.m`: editable quick-start template
 - `references/designs/dt/design_3rd_order_ciff_10mhz.m`: 3rd-order lowpass example with amplitude sweep
 - `references/designs/dt/design_mash_2_1_ciff_10mhz.m`: DT 2-1 MASH example with a 2nd-order CIFF first stage, a 1st-order residue stage, and 4-bit quantizers
@@ -27,6 +28,8 @@ This repo appears to be a reimported in-progress project. The design assets are 
 - `references/third_party/dstoolbox/`: bundled Delta Sigma Toolbox sources
 
 There are also saved outputs in `references/*.mat`, `references/*.png`, and `references/*.slx`.
+
+The repo now follows a shallow documentation hierarchy: `SKILL.md` is the dispatcher, and the lower-level Markdown files under `references/workflows/`, `references/analysis/`, and `references/components/` hold scenario-specific guidance. The MATLAB source layout itself remains unchanged so existing scripts and paths continue to work.
 
 ## Environment Notes
 
